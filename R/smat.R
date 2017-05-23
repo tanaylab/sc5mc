@@ -144,6 +144,12 @@ smat.cell_marginals <- function(smat){
 }
 
 #' @export
+smat.cell_pairs_marginals <- function(smat){
+    ntot <- crossprod(smat$cov) %>% as.matrix() %>% reshape2::melt() %>% rename(cell1=Var1, cell2=Var2, ntot=value)
+    return(ntot)
+}
+
+#' @export
 smat.filter <- function(smat, intervs=NULL, cols=NULL, ...){
 	if (!is.null(intervs)){
 		intervs <- smat$intervs %>% 
@@ -180,7 +186,6 @@ smat.filter_cpgs <- function(smat, intervs=NULL, cols=NULL){
 smat.filter_by_cov <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf){
 	cell_filter <- which(between(colSums(smat$cov), min_cpgs, max_cpgs))
 	cg_filter <- which(between(rowSums(smat$cov), min_cells, max_cells))
-
 
 	new_smat <- smat
 	new_smat$cov <- smat$cov[cg_filter, cell_filter]
