@@ -178,7 +178,7 @@ smat.filter_cpgs <- function(smat, intervs=NULL, cols=NULL){
 	new_smat$cov <- smat$cov[ids, cols]
     new_smat$meth <- smat$meth[ids, cols]
     new_smat$unmeth <- smat$unmeth[ids, cols]
-    new_smat$intervs <- new_mat_intervs
+    new_smat$intervs <- new_mat_intervs %>% mutate(id = 1:n())
     return(new_smat)
 }
 
@@ -196,3 +196,29 @@ smat.filter_by_cov <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_
     return(new_smat)
 }
 
+
+smat.summarise_by_track <- function(smat, track, breaks, include.lowest=TRUE, group_name='group'){
+    opt <- getOption('gmax.data.size')
+    options(gmax.data.size=1e9)
+    on.exit(options(gmax.data.size=opt))
+    message(qq('extracting @{track}'))
+    track_df <- gextract(track, intervals=smat$intervs, iterator=smat$intervs, colnames='group') %>% arrange(intervalID)
+    groups <- cut(track_df$group, breaks=breaks, include.lowest=include.lowest) 
+    message(qq('summarising...'))
+    res <- smat.summarise(smat, groups=groups, group_name=group_name)
+    return(res)
+}
+
+#' @export
+smat.summarise <- function(smat, groups, group_name='group'){
+    res <- smat$intervs %>% 
+        mutate(group = groups) %>% 
+        ddply(.(group), function(x) broom::tidy(smat$meth[x$id, ]) %>% 
+            group_by(column) %>% 
+            summarise(ncpgs = n(), meth=mean(value)),
+             .parallel=T) %>% 
+        tbl_df %>% 
+        set_names(c(group_name, 'track', 'ncpgs', 'meth'))
+    
+    return(res)
+}
