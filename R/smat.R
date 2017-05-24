@@ -15,7 +15,7 @@ tidy2smat <- function(data, row, column, value, ...){
 }
 
 .tidy_calls2smat <- function(tidy_calls){
-    smat <- alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
+    smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))
         tidy2smat(tidy_calls, 'coord', 'track', x)                    
     }, .parallel=TRUE)
@@ -23,7 +23,7 @@ tidy2smat <- function(data, row, column, value, ...){
     names(smat) <- c('meth', 'unmeth', 'cov')
   
     message('creating intervs')
-    smat$intervs <- tibble(coord = rownames(smat[[1]])) %>% separate(coord, c('chrom', 'start', 'end'))
+    smat$intervs <- tibble(coord = rownames(smat[[1]])) %>% separate(coord, c('chrom', 'start', 'end')) %>% mutate(id = 1:n())
 
     return(smat)
 }
@@ -101,8 +101,21 @@ smat.import_from_tracks <- function(tracks, libs, prefix=NULL, threads=5){
 }
 
 #' @export
+smat.from_df <- function(df){
+    .tidy_calls2smat(df %>% unite('coord', chrom, start, end))
+}
+
+#' @export
+smat.to_tidy <- function(smat){
+    tmeth <- broom::tidy(smat$meth) %>% tbl_df %>% rename(id=row, track=column, meth=value)
+    tunmeth <- broom::tidy(smat$unmeth) %>% tbl_df %>% rename(id=row, track=column, unmeth=value)
+    tidy <- tmeth %>% mutate(unmeth = tunmeth[['unmeth']], cov = meth + unmeth)
+    return(tidy)
+}
+
+#' @export
 smat.save <- function(smat, prefix){
-    res <- alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
+    res <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))        
         Matrix::writeMM(smat[[x]], paste0(prefix, '.', x))        
     }, .parallel=TRUE)
@@ -118,7 +131,7 @@ smat.save <- function(smat, prefix){
 smat.load <- function(conf){      
     mat_colnames <- read_csv(conf$sparse_matrix$colnames, col_types=cols(track = col_character())) %>% .$track
 
-    smat <- alply(c('cov', 'meth', 'unmeth'), 1, function(x) {
+    smat <- plyr::alply(c('cov', 'meth', 'unmeth'), 1, function(x) {
     	message(sprintf('doing %s', x))
     	m <- readMM(conf$sparse_matrix[[x]]) * 1
     	colnames(m) <- mat_colnames
@@ -150,25 +163,26 @@ smat.cell_pairs_marginals <- function(smat){
 }
 
 #' @export
-smat.filter <- function(smat, intervs=NULL, cols=NULL, ...){
+smat.filter <- function(smat, intervs=NULL, cols=NULL, ids=NULL, ...){
 	if (!is.null(intervs)){
 		intervs <- smat$intervs %>% 
     	gintervals.intersect(intervs)     		
 	}     
     
-    return(smat.filter_cpgs(smat, intervs, cols=cols, ...))    
+    return(smat.filter_cpgs(smat, intervs, cols=cols, ids=ids, ...))    
 }
 
 #' @export
-smat.filter_cpgs <- function(smat, intervs=NULL, cols=NULL){
-	if (is.null(intervs)){
-		new_mat_intervs <- smat$intervs		
-		ids <- 1:nrow(smat$cov) 	
-	} else {
-		new_mat_intervs <- smat$intervs %>% inner_join(intervs, by=c('chrom', 'start', 'end')) %>% arrange(id)		
-		ids <- new_mat_intervs$id 	
-	}
-	
+smat.filter_cpgs <- function(smat, intervs=NULL, cols=NULL, ids=NULL){
+    if (!is.null(ids)){
+        new_mat_intervs <- smat$intervs %>% filter(id %in% ids)
+    } else if (!is.null(intervs)) {
+        new_mat_intervs <- smat$intervs %>% inner_join(intervs, by=c('chrom', 'start', 'end')) %>% arrange(id)      
+        ids <- new_mat_intervs$id   
+    } else {
+        new_mat_intervs <- smat$intervs     
+        ids <- 1:nrow(smat$cov)     
+    }	
 		
 	if (is.null(cols)){
 		cols <- colnames(smat$cov)
@@ -196,28 +210,72 @@ smat.filter_by_cov <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_
     return(new_smat)
 }
 
-
-smat.summarise_by_track <- function(smat, track, breaks, include.lowest=TRUE, group_name='group'){
+#' @export
+smat.summarise_by_track <- function(smat, track, breaks, include.lowest=TRUE, group_name='group', parallel=TRUE){
     opt <- getOption('gmax.data.size')
     options(gmax.data.size=1e9)
     on.exit(options(gmax.data.size=opt))
     message(qq('extracting @{track}'))
     track_df <- gextract(track, intervals=smat$intervs, iterator=smat$intervs, colnames='group') %>% arrange(intervalID)
     groups <- cut(track_df$group, breaks=breaks, include.lowest=include.lowest) 
-    message(qq('summarising...'))
-    res <- smat.summarise(smat, groups=groups, group_name=group_name)
+    message(qq('summarising per group...'))
+    res <- smat.summarise(smat, groups=groups, group_name=group_name, parallel=parallel)
     return(res)
 }
 
 #' @export
-smat.summarise <- function(smat, groups, group_name='group'){
+smat.summarise_by_intervals <- function(smat, intervals, return_smat=FALSE){
+    opt <- getOption('gmax.data.size')
+    options(gmax.data.size=1e9)
+    on.exit(options(gmax.data.size=opt))    
+    
+    if ('strand' %in% colnames(intervals)){
+        intervals1 <- intervals %>% select(-strand)
+    } else {
+        intervals1 <- intervals
+    }
+    message('finding overlapping CpGs')
+    neighbours <- smat$intervs %>% gintervals.neighbors1(intervals1, na.if.notfound=FALSE, mindist=0, maxdist=0)
+
+    smat_f <- smat.filter(smat, ids=neighbours$id)
+    
+    message(qq('summarising per group...'))
+    tcpgs <- smat.to_tidy(smat_f)
+    
+    res <- tcpgs %>%
+        inner_join(neighbours %>% select(id, chrom=chrom1, start=start1, end=end1), by='id') %>%
+        group_by(chrom, start, end, track) %>% 
+        summarise(ncpgs=n(), cov = sum(cov), meth = sum(meth), unmeth = sum(unmeth), avg = meth / cov) %>% 
+        ungroup
+
+    if (return_smat){
+        res <- smat.from_df(res)
+    }
+
+    return(res)
+}
+
+
+
+#' @export
+smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
+    summarise_per_group <- function(x){      
+        if (nrow(x) == 1){
+            m <- smat$meth[x$id, ]
+            cv <- smat$cov[x$id, ]            
+        } else {
+            m <- colSums(smat$meth[x$id, ])
+            cv <- colSums(smat$cov[x$id, ])    
+        }
+        
+        tibble(track=names(cv), ncpgs = cv, meth=m / cv)  
+    }    
+
     res <- smat$intervs %>% 
         mutate(group = groups) %>% 
-        ddply(.(group), function(x) broom::tidy(smat$meth[x$id, ]) %>% 
-            group_by(column) %>% 
-            summarise(ncpgs = n(), meth=mean(value)),
-             .parallel=T) %>% 
+        plyr::ddply(.(group), summarise_per_group, .parallel=parallel) %>% 
         tbl_df %>% 
+        filter(ncpgs > 0) %>% 
         set_names(c(group_name, 'track', 'ncpgs', 'meth'))
     
     return(res)

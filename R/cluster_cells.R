@@ -23,7 +23,7 @@ sc5mc.calc_pdiff <- function(smat, min_cgs=100, intervs=NULL, cols=NULL, samp_da
        'cov',    'cov',        'ntot'
      )
 
-    cell_comp <- alply(stats_tab, 1, function(x) calc_mat_stat(smat, x$mat1, x$mat2, x$col), .parallel=T)
+    cell_comp <- plyr::alply(stats_tab, 1, function(x) calc_mat_stat(smat, x$mat1, x$mat2, x$col), .parallel=T)
 
     cell_comp <- cell_comp %>%  reduce(left_join, by=c('cell1', 'cell2')) %>% tbl_df
 

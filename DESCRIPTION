@@ -11,6 +11,7 @@ Imports:
 	Matrix,
 	gpatterns,
 	broom,
+	zoo,
 	cowplot
 Remotes: bitbucket::tanaylab/gpatterns
 License: What license is it under?
