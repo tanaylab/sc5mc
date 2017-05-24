@@ -106,10 +106,13 @@ smat.from_df <- function(df){
 }
 
 #' @export
-smat.to_tidy <- function(smat){
+smat.to_df <- function(smat, coords=TRUE){
     tmeth <- broom::tidy(smat$meth) %>% tbl_df %>% rename(id=row, track=column, meth=value)
     tunmeth <- broom::tidy(smat$unmeth) %>% tbl_df %>% rename(id=row, track=column, unmeth=value)
     tidy <- tmeth %>% mutate(unmeth = tunmeth[['unmeth']], cov = meth + unmeth)
+    if (coords){
+        tidy <- tidy %>% separate(id, c('chrom', 'start', 'end'))
+    }
     return(tidy)
 }
 
@@ -201,6 +204,13 @@ smat.filter_by_cov <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_
 	cell_filter <- which(between(colSums(smat$cov), min_cpgs, max_cpgs))
 	cg_filter <- which(between(rowSums(smat$cov), min_cells, max_cells))
 
+    if (length(cg_filter) == 0){
+        stop('no cpgs match the criteria')
+    }
+    if (length(cell_filter) == 0){
+        stop('no cells match the criteria')
+    }
+    
 	new_smat <- smat
 	new_smat$cov <- smat$cov[cg_filter, cell_filter]
     new_smat$meth <- smat$meth[cg_filter, cell_filter]
@@ -240,7 +250,7 @@ smat.summarise_by_intervals <- function(smat, intervals, return_smat=FALSE){
     smat_f <- smat.filter(smat, ids=neighbours$id)
     
     message(qq('summarising per group...'))
-    tcpgs <- smat.to_tidy(smat_f)
+    tcpgs <- smat.to_df(smat_f, coords=FALSE)
     
     res <- tcpgs %>%
         inner_join(neighbours %>% select(id, chrom=chrom1, start=start1, end=end1), by='id') %>%

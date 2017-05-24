@@ -39,6 +39,53 @@ sc5mc.calc_pdiff <- function(smat, min_cgs=100, intervs=NULL, cols=NULL, samp_da
     return(cell_comp)
 }
 
+
+#' @export
+sc5mc.calc_pdiff_rows <- function(smat, min_cells=5, intervs=NULL, cols=NULL){
+    if (!is.null(intervs) || !is.null(cols)){
+        smat <- smat.filter(smat, intervs=intervs, cols=cols)    
+    }       
+
+    calc_mat_stat <- function(smat, mat1_name, mat2_name, column_name){
+        if (mat1_name == mat2_name){
+            stat <- tcrossprod(smat[[mat1_name]])         
+        } else {
+            stat <- tcrossprod(smat[[mat1_name]], smat[[mat2_name]])             
+        }        
+        stat <- stat %>% as.matrix() %>% reshape2::melt() %>% set_names(c('interval1', 'interval2', column_name))
+        return(stat)
+    }
+
+    stats_tab <- tribble(
+       ~mat1, ~mat2, ~col,
+       'meth',   'meth',       'n11',
+       'unmeth', 'unmeth',     'n00',
+       'meth',   'unmeth',     'n10',
+       'unmeth', 'meth',       'n01',       
+       'cov',    'cov',        'ntot'
+     )
+
+    interval_comp <- plyr::alply(stats_tab, 1, function(x) calc_mat_stat(smat, x$mat1, x$mat2, x$col), .parallel=T)
+
+
+    interval_comp <- interval_comp %>%  reduce(left_join, by=c('interval1', 'interval2')) %>% tbl_df
+
+    interval_comp <- interval_comp %>% 
+        mutate(n = n11 + n00 + n10 + n01, psame = (n00 + n11) / n, pdiff=1 - psame) %>% 
+        filter(interval1 != interval2, n >= min_cells)  
+   
+    
+    return(interval_comp)
+}
+
+#' @export
+sc5mcs.calc_pdiff_cor_rows <- function(row_comp, min_intervals, use='pairwise.complete.obs', method='spearman', intervals=NULL){
+    row_comp <- row_comp %>% rename(cell1 = interval1, cell2 = interval2)
+    row_cor <- sc5mc.calc_pdiff_cor(row_comp, min_cells=min_intervals, use=use, method=method, cells=intervals)
+    row_cor <- row_cor %>% rename(interval1 = cell1, interval2 = cell2)
+    return(row_cor)
+}
+
 #' @export
 sc5mc.calc_pdiff_cor <- function(cell_comp, min_cells, use='pairwise.complete.obs', method='spearman', cells=NULL){
     cell_comp <- cell_comp %>% select(cell1, cell2, pdiff)
