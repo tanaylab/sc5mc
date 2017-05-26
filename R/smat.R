@@ -178,7 +178,7 @@ smat.save <- function(smat, prefix){
         Matrix::writeMM(smat[[x]], paste0(prefix, '.', x))
     }, .parallel=TRUE)
 
-    tibble(cell = colnames(smat$cov)) %>% fwrite(paste0(prefix, '_colnames.tsv'))
+    tibble(cell = smat.colnames(smat)) %>% fwrite(paste0(prefix, '_colnames.tsv'))
 
     message('creating intervs')
     tibble(coord = rownames(smat$cov)) %>% separate(coord, c('chrom', 'start', 'end')) %>% fwrite(paste0(prefix, '_intervs.tsv'))
@@ -233,41 +233,112 @@ smat.from_conf <- function(conf){
     return(smat)
 }
 
+#' Print smat object
+#' 
+#' @param smat smat object
+#' 
+#' @export
+smat.info <- function(smat){
+    ncells <- comify(ncol(smat[['cov']]))
+    ncpgs <- comify(nrow(smat[['cov']]))
+    attrs <- paste(names(smat), collapse=', ')
+    cat(qq('smat object\n@{ncpgs} CpGs X @{ncells} cells\n'))
+    cat(qq('attributes: @{attrs}\n'))
+}
+
+#' Get colnames of smat object
+#' 
+#' @param smat smat object
+#' 
+#' @export
+smat.colnames <- function(smat){
+    return(colnames(smat[['cov']]))
+}
+
+
+#' convert column names to ids
+cols2ids <- function(smat, cols=NULL){
+    if (!is.null(cols)){
+        ids <- which(smat.colnames(smat) %in% cols)
+    } else {
+        ids <- 1:ncol(smat$cov)
+    }
+    return(ids)
+}
+
 
 #' calculate marginal coverage of CpGs
 #'
 #' @param smat smat object
+#' @param cols column names of columns to use. If NULL all columns (cells) would be returned
 #'
 #' @return intervals set (chrom, start, end) with the cpgs and their marginal
 #' coverage (cells field)
+#' 
 #' @export
-smat.cpg_marginals <- function(smat){
-	mars <- rowSums(smat$cov)
+smat.cpg_marginals <- function(smat, cols=NULL){	
+    ids <- cols2ids(smat, cols)
+
+    mars <- rowSums(smat$cov[, ids])
+
 	return(smat$intervs %>% select(chrom, start, end) %>% mutate(cells = mars))
 }
 
 #' calculate marginal coverage of cells
 #'
 #' @param smat smat object
+#' @param cols column names of columns to use. If NULL all columns (cells) would be returned
 #'
 #' @return tibble with cells ('cell' field) and their marignal coverage ('cov' field)
 #' @export
-smat.cell_marginals <- function(smat){
-	mars <- colSums(smat$cov)
-	return(tibble(cell=colnames(smat$cov), cov=mars))
+smat.cell_marginals <- function(smat, cols=NULL){
+    ids <- cols2ids(smat, cols)
+	mars <- colSums(smat$cov[, ids])
+
+    return(tibble(cell=smat.colnames(smat)[ids], cov=mars))
 }
 
 #' Calculate the joint coverage of all pairs of cells
 #'
 #' @param smat smat object
-#'
+#' @param cols column names of columns to use. If NULL all columns (cells) would be returned
+#' 
 #' @return tibble with cell pairs (cell1, cell2 fields) and 'ntot' with the
 #' number of jointly covered CpGs
 #'
 #' @export
-smat.cell_pairs_marginals <- function(smat){
-    ntot <- crossprod(smat$cov) %>% as.matrix() %>% reshape2::melt() %>% rename(cell1=Var1, cell2=Var2, ntot=value)
+smat.cell_pairs_marginals <- function(smat, cols=NULL){
+    ids <- cols2ids(smat, cols)   
+
+    ntot <- crossprod(smat$cov[, ids]) %>% as.matrix() %>% reshape2::melt() %>% rename(cell1=Var1, cell2=Var2, ntot=value)
+
+    ntot <- combn(smat.colnames(smat)[ids], 2) %>% t() %>% tbl_df %>% set_names(c('cell1', 'cell2')) %>% inner_join(ntot, by=c('cell1', 'cell2'))
+    
     return(ntot)
+}
+
+#' Calculate the joint coverage of all pairs of CpGs
+#'
+#' @param smat smat object
+#' 
+#' @param min_cells minimal number of cells per CpG
+#' @param cols column names of columns to use. If NULL all columns (cells) would be returned
+#' 
+#' @return tibble with CpG coverage ('ncells') and the number of CpG pairs with that number 
+#' jointly covered cells ('npairs')
+#'
+#' @export
+smat.cpg_pairs_marginals <- function(smat, min_cells=30, cols=NULL){
+    ids <- cols2ids(smat, cols)
+
+    cgs <- which(rowSums(smat$cov[, ids]) >= min_cells)
+    
+    ntot <- tcrossprod(smat$cov[cgs, ids]) %>% broom::tidy()
+    # add explicit zeroes and remove double counting
+    res <-  combn(1:length(cgs), 2) %>% t() %>% tbl_df %>% set_names(c('row', 'column')) %>% left_join(ntot, by=c('row', 'column')) %>% mutate(value = if_else(is.na(value), 0, value))
+    res <- res %>% count(value) %>% rename(ncells=value, npairs=n)
+
+    return(res)
 }
 
 #' Filter smat object
@@ -288,14 +359,22 @@ smat.filter <- function(smat, intervs=NULL, cols=NULL, ids=NULL){
     	gintervals.intersect(intervs)
 	}
 
-    return(smat.filter_cpgs(smat, intervs, cols=cols, ids=ids))
+    return(smat.filter_cpgs(smat, cpg_intervs=intervs, cols=cols, ids=ids))
+}
+
+#' Select cells from smat object
+#' 
+#' @inheritParams smat.filter
+#' @export
+smat.select <- function(smat, cols=NULL){
+    smat.filter(smat, cols=cols)
 }
 
 #' Filter smat object by CpG intervals
 #'
 #' @param smat smat object
 #'
-#' @param intervs intervals set of CpGs (df with chrom,start,end fields) to filter smat by.
+#' @param cpg_intervs intervals set of CpGs (df with chrom,start,end fields) to filter smat by.
 #' only these CpGs would be returned. if NULL all CpGs would be returned.
 #' @param cols column names of columns to keep. If NULL all columns (cells) would be returned
 #' @param ids vector ids of CpGs to filter by.
@@ -303,23 +382,23 @@ smat.filter <- function(smat, intervs=NULL, cols=NULL, ids=NULL){
 #' @return smat object with CpGs covered by intervs, and cells that in cols / ids.
 #'
 #' @export
-smat.filter_cpgs <- function(smat, intervs=NULL, cols=NULL, ids=NULL){
+smat.filter_cpgs <- function(smat, cpg_intervs=NULL, cols=NULL, ids=NULL){
     if (!is.null(ids)){
-        new_mat_intervs <- smat$intervs %>% filter(id %in% ids)
-    } else if (!is.null(intervs)) {
-        new_mat_intervs <- smat$intervs %>% 
-            inner_join(intervs, by=c('chrom', 'start', 'end')) %>% 
+        new_mat_intervs <- smat$cpg_intervs %>% filter(id %in% ids)
+    } else if (!is.null(cpg_intervs)) {
+        new_mat_intervs <- smat$cpg_intervs %>% 
+            inner_join(cpg_intervs, by=c('chrom', 'start', 'end')) %>% 
             arrange(id)
         ids <- new_mat_intervs$id
     } else {
-        new_mat_intervs <- smat$intervs
+        new_mat_intervs <- smat$cpg_intervs
         ids <- 1:nrow(smat$cov)
     }
 
 	if (is.null(cols)){
-		cols <- colnames(smat$cov)
+		cols <- smat.colnames(smat)
 	} else {
-        cols <- which(colnames(smat$cov) %in% cols)
+        cols <- which(smat.colnames(smat) %in% cols)
     }
 
 	new_smat <- smat
@@ -483,7 +562,7 @@ smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
 #' @export
 smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, max_cells=Inf){
     summarise_per_group <- function(x){
-        cells <- match(x$cell, colnames(smat[['cov']]))
+        cells <- match(x$cell, smat.colnames(smat))
         cells <- cells[!is.na(cells)]
         cgs <- which(between(rowSums(smat[['cov']][, cells]), min_cells, max_cells))
 
@@ -494,7 +573,7 @@ smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, 
 
     rm_group <- FALSE
     if (is.null(groups_df) || is.null(groups)){
-        groups_df <- tibble(cell = colnames(smat$cov)) %>% mutate(group = 'group')
+        groups_df <- tibble(cell = smat.colnames(smat)) %>% mutate(group = 'group')
         groups <- 'group'
         rm_group <- TRUE
     }
