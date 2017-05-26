@@ -4,10 +4,12 @@
 \alias{smat.cell_pairs_marginals}
 \title{Calculate the joint coverage of all pairs of cells}
 \usage{
-smat.cell_pairs_marginals(smat)
+smat.cell_pairs_marginals(smat, cols = NULL)
 }
 \arguments{
 \item{smat}{smat object}
+
+\item{cols}{column names of columns to use. If NULL all columns (cells) would be returned}
 }
 \value{
 tibble with cell pairs (cell1, cell2 fields) and 'ntot' with the

@@ -4,10 +4,12 @@
 \alias{smat.cell_marginals}
 \title{calculate marginal coverage of cells}
 \usage{
-smat.cell_marginals(smat)
+smat.cell_marginals(smat, cols = NULL)
 }
 \arguments{
 \item{smat}{smat object}
+
+\item{cols}{column names of columns to use. If NULL all columns (cells) would be returned}
 }
 \value{
 tibble with cells ('cell' field) and their marignal coverage ('cov' field)

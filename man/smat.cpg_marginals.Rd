@@ -4,10 +4,12 @@
 \alias{smat.cpg_marginals}
 \title{calculate marginal coverage of CpGs}
 \usage{
-smat.cpg_marginals(smat)
+smat.cpg_marginals(smat, cols = NULL)
 }
 \arguments{
 \item{smat}{smat object}
+
+\item{cols}{column names of columns to use. If NULL all columns (cells) would be returned}
 }
 \value{
 intervals set (chrom, start, end) with the cpgs and their marginal

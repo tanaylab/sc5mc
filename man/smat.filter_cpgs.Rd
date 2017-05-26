@@ -4,12 +4,12 @@
 \alias{smat.filter_cpgs}
 \title{Filter smat object by CpG intervals}
 \usage{
-smat.filter_cpgs(smat, intervs = NULL, cols = NULL, ids = NULL)
+smat.filter_cpgs(smat, cpg_intervs = NULL, cols = NULL, ids = NULL)
 }
 \arguments{
 \item{smat}{smat object}
 
-\item{intervs}{intervals set of CpGs (df with chrom,start,end fields) to filter smat by.
+\item{cpg_intervs}{intervals set of CpGs (df with chrom,start,end fields) to filter smat by.
 only these CpGs would be returned. if NULL all CpGs would be returned.}
 
 \item{cols}{column names of columns to keep. If NULL all columns (cells) would be returned}
