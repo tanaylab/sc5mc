@@ -1,7 +1,7 @@
 #' @import Matrix
 #' @import gpatterns
 
-## Import functions
+#' Create sparse matrix from tidy data frame
 tidy2smat <- function(data, row, column, value, ...){
     row_u <- unique(data[[row]])
     i <- match(data[[row]], row_u)
@@ -384,14 +384,14 @@ smat.select <- function(smat, cols=NULL){
 #' @export
 smat.filter_cpgs <- function(smat, cpg_intervs=NULL, cols=NULL, ids=NULL){
     if (!is.null(ids)){
-        new_mat_intervs <- smat$cpg_intervs %>% filter(id %in% ids)
+        new_mat_intervs <- smat$intervs %>% filter(id %in% ids)
     } else if (!is.null(cpg_intervs)) {
-        new_mat_intervs <- smat$cpg_intervs %>% 
+        new_mat_intervs <- smat$intervs %>% 
             inner_join(cpg_intervs, by=c('chrom', 'start', 'end')) %>% 
             arrange(id)
         ids <- new_mat_intervs$id
     } else {
-        new_mat_intervs <- smat$cpg_intervs
+        new_mat_intervs <- smat$intervs
         ids <- 1:nrow(smat$cov)
     }
 
