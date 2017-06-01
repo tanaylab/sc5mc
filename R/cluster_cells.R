@@ -222,13 +222,13 @@ sc5mc.plot_cor_mat <- function(cell_cor,
                                ...) {
     if (is.null(color_pal)){
         color_pal <- c('blue', 'white', '#ffffd4','#fed98e','#fe9929','#d95f0e','#993404', 'black')
-        breaks1 <-  quantile(cell_cor[cell_cor$cell1 != cell_cor$cell2, ]$corr, seq(0,1,1/(length(color_pal) - 1)), na.rm=T)
-        pallete <- build_pallette(data.frame(point =breaks1, color =color_pal), 1000)
+        color_breaks <-  quantile(cell_cor[cell_cor$cell1 != cell_cor$cell2, ]$corr, seq(0,1,1/(length(color_pal) - 1)), na.rm=T)
+        pallete <- build_pallette(data.frame(point =color_breaks, color =color_pal), 1000)
     }
 
     if (is.null(breaks)){
-        breaks1 <-  quantile(cell_cor[cell_cor$cell1 != cell_cor$cell2, ]$corr, seq(0,1,1/(length(color_pal) - 1)), na.rm=T)
-        zlim <- c(min(breaks1), max(breaks1))
+        color_breaks <-  quantile(cell_cor[cell_cor$cell1 != cell_cor$cell2, ]$corr, seq(0,1,1/(length(color_pal) - 1)), na.rm=T)
+        zlim <- c(min(color_breaks), max(color_breaks))
         breaks <- seq(zlim[1], zlim[2], length.out=1001)
     }
 
