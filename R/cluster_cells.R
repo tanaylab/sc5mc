@@ -10,38 +10,59 @@
 #' @inheritParams sc5mc.plot_cor_mat
 #' 
 #' @return list with the following components: 
-#' 'cell_comp' - pairwise comparison of cell CpGs.
-#' 'cell cor' - pairwise cell correlations.
-#' 'mat' - correlation matrix.
-#' 'hclust_rows' - hclust object used to cluster the rows.
-#' 'hclust_cols' - hclust object used to cluster the columns.
-#' If plot is TRUE the list is returned invisibly
+#' \describe{
+#'   \item{cell_comp:}{pairwise comparison of cell CpGs.}
+#'   \item{cell_cor:}{pairwise cell correlations.}
+#'   \item{cell_cor_mat:}{cells correlation matrix.}
+#'   \item{cell_cor_hclust_rows:}{hclust object used to cluster the rows.}
+#'   \item{cell_cor_hclust_cols:}{hclust object used to cluster the columns.}
+#' }
+#' If plot is TRUE the smat object is returned invisibly
 #' 
 #' @export
 sc5mc.cluster_cells <- function(smat, min_cells=10, min_cgs=100, use='pairwise.complete.obs', method='spearman', clustering_distance = 'euclidean',  clustering_method = 'ward.D2', intervs=NULL, cols=NULL, samp_data=NULL, plot=FALSE, ...){
-    message('calculating pairwise statistics of cells...')
-    cell_comp <- sc5mc.calc_pdiff(smat, min_cgs=min_cgs, intervs=intervs, cols=cols, samp_data=samp_data)
 
-    message('calculating pairwise correlations...')
-    cell_cor <- sc5mc.calc_pdiff_cor(cell_comp, min_cells=min_cells, use=use, method=method)
-    mat <- cell_cor %>% filter(cell1 != cell2) %>% spread(cell2, corr) %>% select(-cell1) %>% as.matrix()
+    smat <- smat.cluster_cells(smat=smat, min_cells=min_cells, min_cgs=min_cgs, use=use, method=method, clustering_distance=clustering_distance, clustering_method=clustering_method, intervs=intervs, cols=cols, samp_data=samp_data, plot=plot, ...)
+  
+    res <- list(cell_comp = smat$cell_comp,
+                cell_cor = smat$cell_cor, 
+                cell_cor_mat = smat$cell_cor_mat, 
+                cell_cor_hclust_rows = smat$cell_cor_hclust_rows, 
+                cell_cor_hclust_cols = smat$cell_cor_hclust_cols)
+
+    return(res)
+}
+
+#' Cluster cells
+#' 
+#' @inheritParams sc5mc.cluster_cells
+#' 
+#' @return smat object with the following fields: 
+#' \describe{
+#'   \item{cell_comp:}{pairwise comparison of cell CpGs.}
+#'   \item{cell_cor:}{pairwise cell correlations.}
+#'   \item{cell_cor_mat:}{cells correlation matrix.}
+#'   \item{cell_cor_hclust_rows:}{hclust object used to cluster the rows.}
+#'   \item{cell_cor_hclust_cols:}{hclust object used to cluster the columns.}
+#' }
+#' If plot is TRUE the smat object is returned invisibly
+#' 
+#' @export
+smat.cluster_cells <- function(smat, min_cells=10, min_cgs=100, use='pairwise.complete.obs', method='spearman', clustering_distance = 'euclidean',  clustering_method = 'ward.D2', intervs=NULL, cols=NULL, samp_data=NULL, plot=FALSE, ...){
+    smat <- smat.calc_pdiff_cor(smat=smat, min_cells=min_cells, min_cgs=min_cgs, use=use, method=method, intervs=intervs, cols=cols, samp_data=samp_data)
+
+    smat$cell_cor_mat <- smat[['cell_cor']] %>% filter(cell1 != cell2) %>% spread(cell2, corr) %>% select(-cell1) %>% as.matrix()
+    mat <- smat$cell_cor_mat
 
     message('clustering...')
-    hclust_cols <- dist(t(mat), method = clustering_distance) %>% hclust(method = clustering_method) %>%  dendsort::dendsort()
-    hclust_rows <- dist(mat, method = clustering_distance) %>% hclust(method = clustering_method) %>%  dendsort::dendsort()
-
-    res <- list(cell_comp = cell_comp,
-                cell_cor = cell_cor, 
-                mat = mat, 
-                hclust_rows = hclust_rows, 
-                hclust_cols = hclust_cols)
+    smat$cell_cor_hclust_cols <- dist(t(mat), method = clustering_distance) %>% hclust(method = clustering_method) %>%  dendsort::dendsort()
+    smat$cell_cor_hclust_rows <- dist(mat, method = clustering_distance) %>% hclust(method = clustering_method) %>%  dendsort::dendsort()
 
     if (plot){
-        sc5mc.plot_cor_mat(cell_cor, cluster_rows=hclust_rows, cluster_cols=hclust_cols, ...)
-        invisible(res)
-    } else {
-        return(res)    
-    }    
+        sc5mc.plot_cor_mat(smat$cell_cor, cluster_rows=smat$cell_cor_hclust_rows, cluster_cols=smat$cell_cor_hclust_cols, ...)
+        invisible(smat)
+    }
+    return(smat)
 }
 
 #' calculate pairwise statistics of cells
@@ -95,6 +116,21 @@ sc5mc.calc_pdiff <- function(smat, min_cgs=100, intervs=NULL, cols=NULL, samp_da
     return(cell_comp)
 }
 
+#' calculate pairwise statistics of cells
+#'
+#' @param smat smat object
+#'
+#' @inheritParams sc5mc.calc_pdiff
+#' 
+#' @return smat object with cell_comp field 
+#'
+#' @export
+smat.calc_pdiff <- function(smat, min_cgs=100, intervs=NULL, cols=NULL, samp_data=NULL){
+    message('calculating pairwise statistics of cells...')
+    smat$cell_comp <- sc5mc.calc_pdiff(smat, min_cgs=min_cgs, intervs=intervs, cols=cols, samp_data=samp_data)
+    return(smat)
+}
+
 #' Calculate pairwise correlation of cells pdiff
 #' 
 #' @param cell_comp Output of \code{sc5mc.calc_pdiff}: data frame with pairs of cells (cell1, cell2) and 'pdiff' column with the fraction of different CpGs.
@@ -134,6 +170,26 @@ sc5mc.calc_pdiff_cor <- function(cell_comp, min_cells, use='pairwise.complete.ob
         rename(cell1=Var1, cell2=Var2, corr=value) %>%
         tbl_df
     return(cell_cor)
+}
+
+#' calculate pairwise correlation of cells pdiff
+#'
+#' @param smat smat object
+#'
+#' @inheritParams smat.calc_pdiff
+#' @inheritParams sc5mc.calc_pdiff_cor
+#' 
+#' @return smat object with cell_cor field 
+#'
+#' @export
+smat.calc_pdiff_cor <- function(smat, min_cells=10, min_cgs=100, use='pairwise.complete.obs', method='spearman', intervs=NULL, cols=NULL, samp_data=NULL){
+    if (!('cell_comp' %in% names(smat))){        
+        smat  <- smat.calc_pdiff(smat, min_cgs=min_cgs, intervs=intervs, cols=cols, samp_data=samp_data)
+    }    
+
+    message('calculating pairwise correlations...')
+    smat$cell_cor <- sc5mc.calc_pdiff_cor(smat$cell_comp, min_cells=min_cells, use=use, method=method)
+    return(smat)
 }
 
 

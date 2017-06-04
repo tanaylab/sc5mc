@@ -1,19 +1,6 @@
 #' @import Matrix
 #' @import gpatterns
 
-#' Create sparse matrix from tidy data frame
-tidy2smat <- function(data, row, column, value, ...){
-    row_u <- unique(data[[row]])
-    i <- match(data[[row]], row_u)
-
-    col_u <- unique(data[[column]])
-    j <- match(data[[column]], col_u)
-
-    val <- data[[value]]
-
-    Matrix::sparseMatrix(i = i, j = j, x = val, dimnames = list(row_u, col_u), ...)
-}
-
 .tidy_calls2smat <- function(tidy_calls){
     smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))
@@ -27,6 +14,19 @@ tidy2smat <- function(data, row, column, value, ...){
         separate(coord, c('chrom', 'start', 'end')) %>% mutate(id = 1:n())
 
     return(smat)
+}
+
+#' Create sparse matrix from tidy data frame
+tidy2smat <- function(data, row, column, value, ...){
+    row_u <- unique(data[[row]])
+    i <- match(data[[row]], row_u)
+
+    col_u <- unique(data[[column]])
+    j <- match(data[[column]], col_u)
+
+    val <- data[[value]]
+
+    Matrix::sparseMatrix(i = i, j = j, x = val, dimnames = list(row_u, col_u), ...)
 }
 
 tcpgs2calls <- function(tcpgs, track){
@@ -586,3 +586,4 @@ smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, 
 
     return(res)
 }
+
