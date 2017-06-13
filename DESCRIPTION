@@ -9,11 +9,16 @@ Depends:
     misha (>= 3.5.6),
     gpatterns
 Imports: 
-	Matrix,	
+	Matrix,		
+	dplyr,
+	purrr,
+	ggplot2,	
 	dendsort,
 	broom,
 	zoo,
-	cowplot
+	cowplot,
+	tglkmeans
+Remotes: bitbucket::tanaylab/tglkmeans@default
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
