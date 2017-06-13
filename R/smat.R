@@ -1,10 +1,11 @@
 #' @import Matrix
 #' @import gpatterns
 
-.tidy_calls2smat <- function(tidy_calls){
+
+.tidy_calls2smat <- function(tidy_calls, column_name='track'){
     smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))
-        tidy2smat(tidy_calls, 'coord', 'track', x)
+        tidy2smat(tidy_calls, 'coord', column_name, x)
     }, .parallel=TRUE)
 
     names(smat) <- c('meth', 'unmeth', 'cov')
@@ -24,7 +25,7 @@ tidy2smat <- function(data, row, column, value, ...){
     col_u <- unique(data[[column]])
     j <- match(data[[column]], col_u)
 
-    val <- data[[value]]
+    val <- data[[value]]    
 
     Matrix::sparseMatrix(i = i, j = j, x = val, dimnames = list(row_u, col_u), ...)
 }
@@ -50,14 +51,16 @@ tcpgs2calls <- function(tcpgs, track){
 #' @param workdir temporary directory to use for bam parsing
 #' @param use_sge use sun grid engine cluster
 #' @param ... additional parameters to \code{gpatterns::gpatterns.import_from_bam}
+#' 
+#' @return smat object (inivisibly if prefix is not NULL)
 #'
 #' @export
 smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, ...){
-    bam2calls <- function(bams, lib, workdir=workdir, use_sge=TRUE, ...){
+    bam2calls <- function(bams, lib, workdir=workdir, use_sge=TRUE, ...){                  
         track_workdir <- tempfile(tmpdir=workdir)
         system(sprintf('mkdir -p %s', track_workdir))
-        on.exit(system(sprintf('rm -rf %s', track_workdir)))
-        gpatterns.import_from_bam(bams, workdir=track_workdir, steps=c('bam2tidy_cpgs', 'filter_dups'), groot=groot, ...)
+        on.exit(system(sprintf('rm -rf %s', track_workdir)))        
+        gpatterns::gpatterns.import_from_bam(bams, workdir=track_workdir, steps=c('bam2tidy_cpgs', 'filter_dups'), groot=groot)
 
         tcpgs_dir <- paste0(track_workdir, '/tidy_cpgs_uniq')
         tcpgs <- .gpatterns.get_tidy_cpgs_from_dir(tcpgs_dir)
@@ -70,17 +73,18 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         return(calls)
     }
 
-    gsetroot(groot)
+    gsetroot(groot)    
 
-    commands <- plyr::daply(metadata, .(lib), function(x) {
+    cmds <- plyr::daply(metadata, .(lib), function(x) {
         bams <- paste(qqv("'@{x$bam}'"), collapse=', ')
         qq("bam2calls(c(@{bams}), lib = '@{x$lib[1]}', workdir='@{workdir}', ...)")
     })
-    if (use_sge){
-        res <- gcluster.run2(command_list=commands, io_saturation=T)
+    
+    if (use_sge){        
+        res <- gcluster.run2(command_list=cmds, io_saturation=T, packages='gpatterns')
         tidy_calls <- res %>% map('retv') %>% compact() %>% map_df(~ .x)
     } else {
-        tidy_calls <- map(commands, ~ eval(parse(text=.x))) %>% compact() %>% map_df(~ .x)
+        tidy_calls <- map(cmds, ~ eval(parse(text=.x))) %>% compact() %>% map_df(~ .x)
     }
 
     tidy_calls <- tidy_calls %>% mutate(unmeth = if_else(meth == 0, 1, 0), cov=1)
@@ -88,7 +92,9 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
     smat <- .tidy_calls2smat(tidy_calls)
 
     if (!is.null(prefix)){
+        system(qq('mkdir -p @{dirname(prefix)}'))
         smat.save(smat, prefix)
+        invisible(smat)
     }
     return(smat)
 }
@@ -140,7 +146,7 @@ smat.from_tracks <- function(tracks, libs, prefix=NULL, use_sge=TRUE, ...){
 #' @return smat object
 #' @export
 smat.from_df <- function(df){
-    .tidy_calls2smat(df %>% unite('coord', chrom, start, end))
+    .tidy_calls2smat(df %>% unite('coord', chrom, start, end), column_name='cell')
 }
 
 #' export smat object to data frame
@@ -153,14 +159,59 @@ smat.from_df <- function(df){
 #' meth (methylated calls), unmeth (unmethylated calls) and cov (total coverage)
 #'
 #' @export
-smat.to_df <- function(smat, coords=TRUE){
+smat.to_df <- function(smat, coords=FALSE){
     tmeth <- broom::tidy(smat$meth) %>% tbl_df %>% rename(id=row, cell=column, meth=value)
     tunmeth <- broom::tidy(smat$unmeth) %>% tbl_df %>% rename(id=row, cell=column, unmeth=value)
     tidy <- tmeth %>% mutate(unmeth = tunmeth[['unmeth']], cov = meth + unmeth)
+    tidy <- tidy %>% left_join(smat$intervs, by='id') %>% select(chrom, start, end, id, cell, meth, unmeth, cov)
     if (coords){
-        tidy <- tidy %>% separate(id, c('chrom', 'start', 'end'))
+        tidy <- tidy %>% unite('coords', chrom, start, end)
     }
     return(tidy)
+}
+
+#' Create track from smat marginals
+#' @export
+smat.to_marginal_track <- function(smat, track, description, cols=NULL, overwrite=FALSE){
+    pileup <-  smat.cpg_avg_marginals(smat, cols=cols)
+    gpatterns:::.gpatterns.import_intervs_table(track, description, pileup, overwrite=overwrite)
+}
+
+#' join two smat objects
+#' 
+#' @export
+smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_'){
+    join_func <- switch(type, 
+        inner = inner_join, 
+        full = full_join, 
+        left = left_join, 
+        right = right_join, 
+        semi = semi_join, 
+        anti = anti_join)
+
+    message('merging intervals')
+    intervs <- smat_l$intervs %>%
+        select(-id) %>% 
+        join_func(smat_r$intervs %>% select(-id), by=c('chrom', 'start', 'end'))
+
+    message('merging sparse matrices')
+    df_l <- smat.to_df(smat_l) %>% select(-id)
+    df_r <- smat.to_df(smat_r) %>% select(-id)
+
+    conf_names <- df_l %>% distinct(cell) %>% 
+        inner_join(df_r %>% distinct(cell), by='cell') %>% .$cell
+
+    if (length(conf_names) > 0){
+        warning(qq('conflicting names, adding prefixes: @{paste(conf_names, collapse=", ")}'))
+        df_l <- df_l %>% mutate(cell = paste0(prefix_l, cell))
+        df_r <- df_r %>% mutate(cell = paste0(prefix_r, cell))
+    }
+    
+    # smat.from_df
+    df <- bind_rows(df_l, df_r) %>% inner_join(intervs, by=c('chrom', 'start', 'end'))    
+
+    message('creting smat from df')
+    return(smat.from_df(df))    
 }
 
 #' Save smat object to disk
@@ -220,7 +271,7 @@ smat.from_conf <- function(conf){
     mat_colnames <- read_csv(conf$sparse_matrix$colnames, col_types=cols(col_character()))[[1]]
 
     smat <- plyr::alply(c('cov', 'meth', 'unmeth'), 1, function(x) {
-        message(sprintf('doing %s', x))
+        message(sprintf('loading %s', x))
         m <- readMM(conf$sparse_matrix[[x]]) * 1
         colnames(m) <- mat_colnames
         return(m)
@@ -284,6 +335,26 @@ smat.cpg_marginals <- function(smat, cols=NULL){
 	return(smat$intervs %>% select(chrom, start, end) %>% mutate(cells = mars))
 }
 
+#' calculate marginal average methylation of CpGs
+#'
+#' @param smat smat object
+#' @param cols column names of columns to use. If NULL all columns (cells) would be returned
+#'
+#' @return intervals set (chrom, start, end) with the cpgs, and `cov`, `meth`, `unmeth` and `avg`
+#' additional fields
+#' 
+#' @export
+smat.cpg_avg_marginals <- function(smat, cols=NULL){
+    ids <- cols2ids(smat, cols)
+
+    cov_mars <- rowSums(smat$cov[, ids])
+    meth_mars <- rowSums(smat$meth[, ids])
+
+    res <- smat$intervs %>%
+        mutate(cov = cov_mars, meth = meth_mars, unmeth = cov - meth, avg = meth / cov)
+    return(res)
+}
+
 #' calculate marginal coverage of cells
 #'
 #' @param smat smat object
@@ -332,8 +403,11 @@ smat.cpg_pairs_marginals <- function(smat, min_cells=30, cols=NULL){
     ids <- cols2ids(smat, cols)
 
     cgs <- which(rowSums(smat$cov[, ids]) >= min_cells)
+
+    rownames(smat$cov) <- NULL
     
     ntot <- tcrossprod(smat$cov[cgs, ids]) %>% broom::tidy()
+    
     # add explicit zeroes and remove double counting
     res <-  combn(1:length(cgs), 2) %>% t() %>% tbl_df %>% set_names(c('row', 'column')) %>% left_join(ntot, by=c('row', 'column')) %>% mutate(value = if_else(is.na(value), 0, value))
     res <- res %>% count(value) %>% rename(ncells=value, npairs=n)

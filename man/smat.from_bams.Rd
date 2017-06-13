@@ -23,6 +23,9 @@ would not be written to disk}
 
 \item{...}{additional parameters to \code{gpatterns::gpatterns.import_from_bam}}
 }
+\value{
+smat object (inivisibly if prefix is not NULL)
+}
 \description{
 Create smat object from mapped reads (bam files)
 }

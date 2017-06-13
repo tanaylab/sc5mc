@@ -4,7 +4,7 @@
 \alias{smat.to_df}
 \title{export smat object to data frame}
 \usage{
-smat.to_df(smat, coords = TRUE)
+smat.to_df(smat, coords = FALSE)
 }
 \arguments{
 \item{smat}{smat object}
