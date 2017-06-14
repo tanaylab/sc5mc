@@ -333,7 +333,7 @@ smat.plot_cor_mat <- function(smat,
         cluster_cols <- FALSE
     }
 
-    sc5mc.plot_cor_mat(smat$cell_cor, min_vals_row=min_vals_row, min_vals_col=min_vals_col, row_ord=row_ord, col_ord=col_ord, show_rownames=show_colnames, breaks=breaks, color_pal=color_pal, cluster_rows=cluster_rows, cluster_cols=cluster_cols, ...)
+    sc5mc.plot_cor_mat(smat$cell_cor, row_ord=row_ord, col_ord=col_ord, show_rownames=show_colnames, breaks=breaks, color_pal=color_pal, cluster_rows=cluster_rows, cluster_cols=cluster_cols, ...)
 }
 
 
