@@ -193,10 +193,12 @@ smat.calc_pdiff_cor <- function(smat, min_cells=10, min_cgs=100, use='pairwise.c
 }
 
 
-#' @param smat
+#' calculate pairwise statistics of CpGs
+#' 
+#' @param smat smat object
 #'
-#' @param min_cells
-#' @param intervs
+#' @param min_cells minimal number of cells
+#' @param intervs 
 #' @param cols
 #'
 #' @export
@@ -237,6 +239,8 @@ sc5mc.calc_pdiff_rows <- function(smat, min_cells=5, intervs=NULL, cols=NULL){
     return(interval_comp)
 }
 
+#' calculate pairwise correlation of CpGs pdiff
+#' 
 #' @param row_comp
 #'
 #' @param min_intervals
@@ -253,22 +257,20 @@ sc5mcs.calc_pdiff_cor_rows <- function(row_comp, min_intervals, use='pairwise.co
 }
 
 
-#' @param cell_cor
+#' plot cell cell correlation matrix
+#' 
+#' @param cell_cor cell cell correlation (output of sc5mc.calc_pdiff_cor)
 #'
-#' @param min_vals_row
-#' @param min_vals_col
-#' @param row_ord
-#' @param col_ord
-#' @param show_colnames
-#' @param show_rownames
-#' @param breaks
-#' @param color_pal
-#' @param ...
+#' @param row_ord specific order for the rows
+#' @param col_ord specific order for the columns
+#' @param show_colnames show column names
+#' @param show_rownames show row names
+#' @param color_pal color pallete
+#' @param ... other parameters of pheatmap1
+#' @inheritParams gpatterns::pheatmap1
 #'
 #' @export
 sc5mc.plot_cor_mat <- function(cell_cor,
-                               min_vals_row = 100,
-                               min_vals_col = 100,
                                row_ord = NULL,
                                col_ord = NULL,
                                show_colnames = FALSE,
@@ -308,20 +310,30 @@ sc5mc.plot_cor_mat <- function(cell_cor,
 #'
 #' @export
 smat.plot_cor_mat <- function(smat,
-                               min_vals_row = 100,
-                               min_vals_col = 100,
                                row_ord = NULL,
                                col_ord = NULL,
                                show_colnames = FALSE,
                                show_rownames = FALSE,
                                breaks = NULL,
-                               color_pal = NULL,
+                               color_pal = NULL,                               
                                ...) {
     if (!('cell_cor' %in% names(smat))){
         stop('No "cell_cor" field. Please run smat.cluster_cells() first')
     }
 
-    sc5mc.plot_cor_mat(smat$cell_cor, min_vals_row=min_vals_row, min_vals_col=min_vals_col, row_ord=row_ord, col_ord=col_ord, show_rownames=show_colnames, breaks=breaks, color_pal=color_pal, cluster_rows=smat$cell_cor_hclust_rows, cluster_cols=smat$cell_cor_hclust_cols, ...)
+    if ('cell_cor_hclust_rows' %in% names(smat)){
+        cluster_rows <- smat$cell_cor_hclust_rows
+    } else {
+        cluster_rows <- FALSE
+    }
+
+    if ('cell_cor_hclust_cols' %in% names(smat)){
+        cluster_cols <- smat$cell_cor_hclust_cols
+    } else {
+        cluster_cols <- FALSE
+    }
+
+    sc5mc.plot_cor_mat(smat$cell_cor, min_vals_row=min_vals_row, min_vals_col=min_vals_col, row_ord=row_ord, col_ord=col_ord, show_rownames=show_colnames, breaks=breaks, color_pal=color_pal, cluster_rows=cluster_rows, cluster_cols=cluster_cols, ...)
 }
 
 

@@ -1,3 +1,5 @@
+#' Global methylation trend per cell
+#' 
 #' @param smat smat object
 #'
 #' @param breaks breaks of cpg content
