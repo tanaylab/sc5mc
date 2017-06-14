@@ -301,4 +301,27 @@ sc5mc.plot_cor_mat <- function(cell_cor,
     invisible(res)
 }
 
+#' plot cell cell correlation matrix
+#' 
+#' @param smat smat object
+#' @inheritParams sc5mc.plot_cor_mat
+#'
+#' @export
+smat.plot_cor_mat <- function(smat,
+                               min_vals_row = 100,
+                               min_vals_col = 100,
+                               row_ord = NULL,
+                               col_ord = NULL,
+                               show_colnames = FALSE,
+                               show_rownames = FALSE,
+                               breaks = NULL,
+                               color_pal = NULL,
+                               ...) {
+    if (!('cell_cor' %in% names(smat))){
+        stop('No "cell_cor" field. Please run smat.cluster_cells() first')
+    }
+
+    sc5mc.plot_cor_mat(smat$cell_cor, min_vals_row=min_vals_row, min_vals_col=min_vals_col, row_ord=row_ord, col_ord=col_ord, show_rownames=show_colnames, breaks=breaks, color_pal=color_pal, cluster_rows=smat$cell_cor_hclust_rows, cluster_cols=smat$cell_cor_hclust_cols, ...)
+}
+
 

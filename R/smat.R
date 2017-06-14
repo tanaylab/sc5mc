@@ -1,6 +1,3 @@
-#' @import Matrix
-#' @import gpatterns
-
 
 .tidy_calls2smat <- function(tidy_calls, column_name='track'){
     smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
@@ -12,7 +9,8 @@
 
     message('creating intervs')
     smat$intervs <- tibble(coord = rownames(smat[[1]])) %>% 
-        separate(coord, c('chrom', 'start', 'end')) %>% mutate(id = 1:n())
+        separate(coord, c('chrom', 'start', 'end')) %>% mutate(id = 1:n()) %>% 
+        mutate(start = as.numeric(start), end = as.numeric(end))
 
     return(smat)
 }
@@ -173,7 +171,7 @@ smat.to_df <- function(smat, coords=FALSE){
 #' Create track from smat marginals
 #' @export
 smat.to_marginal_track <- function(smat, track, description, cols=NULL, overwrite=FALSE){
-    pileup <-  smat.cpg_avg_marginals(smat, cols=cols)
+    pileup <-  smat.cpg_avg_marginals(smat, cols=cols) %>% select(chrom, start, end, cov, meth, unmeth)
     gpatterns:::.gpatterns.import_intervs_table(track, description, pileup, overwrite=overwrite)
 }
 
@@ -405,7 +403,7 @@ smat.cpg_pairs_marginals <- function(smat, min_cells=30, cols=NULL){
     cgs <- which(rowSums(smat$cov[, ids]) >= min_cells)
 
     rownames(smat$cov) <- NULL
-    
+
     ntot <- tcrossprod(smat$cov[cgs, ids]) %>% broom::tidy()
     
     # add explicit zeroes and remove double counting
@@ -534,7 +532,7 @@ smat.summarise_by_track <- function(smat, track, breaks, include.lowest=TRUE, gr
     opt <- getOption('gmax.data.size')
     options(gmax.data.size=1e9)
     on.exit(options(gmax.data.size=opt))
-    message(qq('extracting @{track}'))
+    message(qq('extracting @{track}'))    
     track_df <- gextract(track, intervals=smat$intervs, iterator=smat$intervs, colnames='group') %>% arrange(intervalID)
     groups <- cut(track_df$group, breaks=breaks, include.lowest=include.lowest)
     message(qq('summarising per group...'))
