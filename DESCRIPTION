@@ -15,6 +15,7 @@ Imports:
 	dplyr,
 	purrr,
 	ggplot2,	
+	ggpmisc,
 	dendsort,
 	broom,
 	zoo,

@@ -5,4 +5,5 @@
 #' 
 #' @import Matrix
 #' @import gpatterns
+#' @importFrom rlang has_name
 NULL

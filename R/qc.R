@@ -15,11 +15,45 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 	cell_mars <- sc5mc.plot_cell_marginals(smat, type='percent')
 	cell_pairs_mars <- sc5mc.plot_cell_pairs_coverage(smat)
 	cg_pairs_mars <- sc5mc.plot_cg_pairs_coverage(smat, min_cells=cpg_pairs_min_cells)
-	p <- cowplot::plot_grid(cgp_mars, cell_mars, cell_pairs_mars, cg_pairs_mars, align='hv', labels=LETTERS[1:4], ncol=2)
+	figs <- list(cgp_mars, cell_mars, cell_pairs_mars, cg_pairs_mars)
+
+	if (has_stats(smat)){		
+		reads_per_cpg <- sc5mc.plot_reads_per_cpg(smat)
+		conversion <- sc5mc.plot_conversion(smat)		
+		figs <- c(reads_per_cpg, conversion, figs)
+	}
+	p <- cowplot::plot_grid(plotlist=figs, align='hv', labels="AUTO", ncol=2)
 	return(p)
 }
 
-#' @param smat
+#' @export
+sc5mc.plot_reads_per_cpg <- function(smat){
+	if (!has_stats(smat)){
+		stop('no stats field!')
+	}
+	stats <- smat$stats
+	if (!has_name(stats, 'cpg_num')){
+		cell_mars <- smat.cell_marginals(smat) %>% rename(lib=cell, cpg_num=cov)
+		stats <- stats %>% left_join(cell_mars, by='lib')
+	}
+	
+	p <- stats %>% ggplot(aes(x=total_reads, y=cpg_num)) + geom_point()  + scale_y_continuous(label=comify)  + scale_x_continuous(label=comify) + xlab('# of reads') + ylab('# of CpGs') + stat_smooth(method='lm', se=F, linetype='dashed') + ggpmisc::stat_poly_eq(formula = y~ x, eq.with.lhs = "italic(hat(y))~`=`~", aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),  parse = TRUE) + labs(subtitle = qq('median reads = @{comify(round(median(stats$total_reads)))}, median cpgs = @{comify(round(median(stats$cpg_num)))}'))
+	return(p)	
+}
+
+#' @export
+sc5mc.plot_conversion <- function(smat){
+	if (!has_stats(smat)){
+		stop('no stats field!')
+	}
+	stats <- smat$stats
+	p <- stats %>% ggplot(aes(x=CHH)) + geom_density() + scale_x_continuous(labels=scales::percent) + xlab('%C not in CpG context (CHH)')
+	return(p)
+}
+
+#' plot cpg marginals
+#' 
+#' @param smat smat object
 #'
 #' @param type
 #'
@@ -37,7 +71,9 @@ sc5mc.plot_cpg_marginals <- function(smat, type='percent'){
 	return(p)
 }
 
-#' @param smat
+#' plot cell marginals
+#' 
+#' @param smat smat object
 #'
 #' @param type
 #'
@@ -58,7 +94,9 @@ sc5mc.plot_cell_marginals <- function(smat, type='percent'){
 	return(p)
 }
 
-#' @param smat
+#' plot cell pairs coverage
+#' 
+#' @param smat smat object
 #'
 #' @export
 sc5mc.plot_cell_pairs_coverage <- function(smat){
@@ -70,7 +108,9 @@ sc5mc.plot_cell_pairs_coverage <- function(smat){
 	return(p)
 }
 
-#' @param smat
+#' plot cg pairs coverage
+#' 
+#' @param smat smat object
 #'
 #' @export
 sc5mc.plot_cg_pairs_coverage <- function(smat, min_cells=30){
