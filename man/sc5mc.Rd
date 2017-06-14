@@ -4,7 +4,7 @@
 \name{sc5mc}
 \alias{sc5mc}
 \alias{sc5mc-package}
-\title{sc5mc}
+\title{sc5mc.}
 \description{
-sc5mc
+sc5mc.
 }

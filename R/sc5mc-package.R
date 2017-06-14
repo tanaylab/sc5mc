@@ -1,4 +1,4 @@
-#' sc5mc
+#' sc5mc.
 #' 
 #' @name sc5mc
 #' @docType package
