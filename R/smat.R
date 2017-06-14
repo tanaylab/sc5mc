@@ -139,7 +139,7 @@ smat.from_conf <- function(conf){
     obs_cpgs <- fread(conf$sparse_matrix$intervs) %>% mutate(id = 1:n()) %>% tbl_df()
     smat$intervs <- obs_cpgs
 
-    if ('stats' %in% conf$sparse_matrix){
+    if (has_name(conf$sparse_matrix, 'stats')){
         smat$stats <- fread(conf$sparse_matrix$stats) %>% tbl_df()
     }
     return(smat)
