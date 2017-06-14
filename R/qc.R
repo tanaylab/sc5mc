@@ -18,9 +18,8 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 	figs <- list(cgp_mars, cell_mars, cell_pairs_mars, cg_pairs_mars)
 
 	if (has_stats(smat)){		
-		reads_per_cpg <- sc5mc.plot_reads_per_cpg(smat)
-		conversion <- sc5mc.plot_conversion(smat)		
-		figs <- c(reads_per_cpg, conversion, figs)
+		figs[['reads_per_cpg']] <- sc5mc.plot_reads_per_cpg(smat)
+		figs[['conversion']] <- sc5mc.plot_conversion(smat)				
 	}
 	p <- cowplot::plot_grid(plotlist=figs, align='hv', labels="AUTO", ncol=2)
 	return(p)
