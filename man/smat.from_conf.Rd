@@ -12,7 +12,8 @@ cov - path of coverage sparse matrix
 meth - path of meth sparse matrix
 unmeth - path of unmeth sparse matrix
 intervs - path of intervs file
-colnames - path of colnames file}
+colnames - path of colnames file
+attributes_file - path of attributes yaml file (optional)}
 }
 \value{
 smat object

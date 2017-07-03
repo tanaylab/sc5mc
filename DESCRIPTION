@@ -12,15 +12,17 @@ Depends:
     gpatterns
 Imports: 
 	Matrix,		
-	dplyr,
+	dplyr,	
 	purrr,
-	ggplot2,	
+	ggplot2,		
 	ggpmisc,
 	dendsort,
 	broom,
 	zoo,
 	cowplot,
-	tglkmeans
+	tglkmeans,
+	glue,
+	yaml
 Remotes: bitbucket::tanaylab/tglkmeans@default
 License: GPL
 Encoding: UTF-8

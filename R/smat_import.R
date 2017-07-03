@@ -9,12 +9,14 @@
 #' would not be written to disk
 #' @param workdir temporary directory to use for bam parsing
 #' @param use_sge use sun grid engine cluster
+#' @param name name of the object
+#' @param description description of the object
 #' @param ... additional parameters to \code{gpatterns::gpatterns.import_from_bam}
 #' 
 #' @return smat object (inivisibly if prefix is not NULL)
 #'
 #' @export
-smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, ...){
+smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', ...){
     bam2calls <- function(bams, lib, workdir=workdir, use_sge=TRUE){                  
         track_workdir <- tempfile(tmpdir=workdir)
         system(sprintf('mkdir -p %s', track_workdir))
@@ -58,6 +60,8 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
 
     smat <- .tidy_calls2smat(tidy_calls)
     smat$stats <- stats
+    smat$name <- name
+    smat$description <- description
 
     if (!is.null(prefix)){
         system(qq('mkdir -p @{dirname(prefix)}'))
@@ -75,12 +79,14 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
 #' @param prefix path prefix in which to save the smat files. if NULL the object
 #' would not be written to disk
 #' @param use_sge use sun grid engine cluster
+#' @param name name of the object
+#' @param description description of the object
 #' @param ... additional parameters to gcluster.run2
 #'
 #' @return smat object
 #'
 #' @export
-smat.from_tracks <- function(tracks, libs, prefix=NULL, use_sge=TRUE, ...){
+smat.from_tracks <- function(tracks, libs, prefix=NULL, use_sge=TRUE, name='', description='', ...){
     get_tidy_meth_calls <- function(track, uniq=TRUE, dsn=NULL) {
         tcpgs <- gpatterns::gpatterns.get_tidy_cpgs(track)
         if (is.null(tcpgs)){
@@ -88,6 +94,7 @@ smat.from_tracks <- function(tracks, libs, prefix=NULL, use_sge=TRUE, ...){
         }
         tcpgs2calls(tcpgs, track)
     }
+
     commands <- paste0('get_tidy_meth_calls(tracks[', 1:length(tracks), '])')
     if (use_sge){
         res <- gcluster.run2(command_list=commands, ...)
@@ -96,42 +103,64 @@ smat.from_tracks <- function(tracks, libs, prefix=NULL, use_sge=TRUE, ...){
         tidy_calls <- map(commands, ~ eval(parse(text=.x))) %>% compact() %>% map_df(~ .x)
     }
 
-
     tidy_calls <- tidy_calls %>% mutate(unmeth = if_else(meth == 0, 1, 0), cov=1)
 
     smat <- .tidy_calls2smat(tidy_calls)
 
+    smat$name <- name
+    smat$description <- description
+
     if (!is.null(prefix)){
         smat.save(smat, prefix)
     }
+
     return(smat)
 }
 
 #' Create smat object from data frame
-#' @param df intervals (chrom, start, end fields) data frame with additonal fields:
+#' @param df intervals ('chrom', 'start', 'end' fields) with additional fields:
 #' meth (methylated calls), unmeth (unmethylated calls) and cov (total coverage)
-#'
+#' @param name name of the object
+#' @param description description of the object
+#' 
 #' @return smat object
 #' @export
-smat.from_df <- function(df){
-    .tidy_calls2smat(df %>% unite('coord', chrom, start, end), column_name='cell')
+smat.from_df <- function(df, name='', description=''){
+    # .tidy_calls2smat(df %>% unite('coord', chrom, start, end), column_name='cell')
+    smat <- .tidy_calls2smat(df, column_name='cell')
+    smat$name <- name
+    smat$description <- description
+    return(smat)
 }
 
 
 # Utils
 
-.tidy_calls2smat <- function(tidy_calls, column_name='track'){
+.tidy_calls2smat <- function(tidy_calls, column_name='track'){   
+    tidy_calls <- tidy_calls %>% mutate(id = as.character(id)) 
     smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))
-        tidy2smat(tidy_calls, 'coord', column_name, x)
+        tidy2smat(tidy_calls, 'id', column_name, x)
     }, .parallel=TRUE)
 
     names(smat) <- c('meth', 'unmeth', 'cov')
 
-    message('creating intervs')
-    smat$intervs <- tibble(coord = rownames(smat[[1]])) %>% 
-        separate(coord, c('chrom', 'start', 'end')) %>% mutate(id = 1:n()) %>% 
-        mutate(start = as.numeric(start), end = as.numeric(end))
+    message('creating intervs')    
+    # match intervals and ids
+    smat$intervs <- tidy_calls %>%        
+        inner_join(tibble(id = rownames(smat[[1]])), by='id') %>%
+        distinct(chrom, start, end, id)
+
+    # generate new ids
+    smat$intervs <- smat$intervs %>% mutate(id = 1:n())   
+    
+    # smat$intervs <- tibble(coord = rownames(smat[[1]])) %>% 
+    #     separate(coord, c('chrom', 'start', 'end')) %>% mutate(id = 1:n()) %>% 
+    #     mutate(start = as.numeric(start), end = as.numeric(end))
+
+    for (.x in c('meth', 'unmeth', 'cov')){        
+        rownames(smat[[.x]]) <- smat$intervs$id
+    }
 
     return(smat)
 }
@@ -144,7 +173,7 @@ tidy2smat <- function(data, row, column, value, ...){
     col_u <- unique(data[[column]])
     j <- match(data[[column]], col_u)
 
-    val <- data[[value]]    
+    val <- data[[value]]
 
     Matrix::sparseMatrix(i = i, j = j, x = val, dimnames = list(row_u, col_u), ...)
 }

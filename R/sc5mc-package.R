@@ -6,4 +6,5 @@
 #' @import Matrix
 #' @import gpatterns
 #' @importFrom rlang has_name
+#' @importFrom glue glue
 NULL

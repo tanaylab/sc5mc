@@ -5,7 +5,7 @@
 \title{Create smat object from mapped reads (bam files)}
 \usage{
 smat.from_bams(metadata, groot, prefix = NULL, workdir = tempdir(),
-  use_sge = TRUE, ...)
+  use_sge = TRUE, name = "", description = "", ...)
 }
 \arguments{
 \item{metadata}{data frame with 'lib' column with the library name (ususally cell id)
@@ -20,6 +20,10 @@ would not be written to disk}
 \item{workdir}{temporary directory to use for bam parsing}
 
 \item{use_sge}{use sun grid engine cluster}
+
+\item{name}{name of the object}
+
+\item{description}{description of the object}
 
 \item{...}{additional parameters to \code{gpatterns::gpatterns.import_from_bam}}
 }
