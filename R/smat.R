@@ -8,11 +8,11 @@
 #' meth (methylated calls), unmeth (unmethylated calls) and cov (total coverage)
 #'
 #' @export
-smat.to_df <- function(smat, coords=FALSE){
+smat.to_df <- function(smat, coords=FALSE){    
     tmeth <- broom::tidy(smat$meth) %>% tbl_df %>% rename(id=row, cell=column, meth=value)
     tunmeth <- broom::tidy(smat$unmeth) %>% tbl_df %>% rename(id=row, cell=column, unmeth=value)
     tidy <- tmeth %>% mutate(unmeth = tunmeth[['unmeth']], cov = meth + unmeth)
-    tidy <- tidy %>% left_join(smat$intervs, by='id') %>% select(chrom, start, end, id, cell, meth, unmeth, cov)
+    tidy <- tidy %>% mutate(id = as.character(id)) %>% left_join(smat$intervs %>% mutate(id = as.character(id)), by='id') %>% select(chrom, start, end, id, cell, meth, unmeth, cov)
     if (coords){
         tidy <- tidy %>% unite('coords', chrom, start, end)
     }
@@ -28,6 +28,14 @@ smat.to_marginal_track <- function(smat, track, description, cols=NULL, overwrit
 
 #' join two smat objects
 #' 
+#' @param smat_r first smat object
+#' @param smat_l seconf smat object
+#' @param type join type. can be 'inner', 'full', 'left', 'right', 'semi' and 'anti'. uses xx_join by dplyr package.
+#' @param prefix_l prefix for cell names from first smat in case of conflicts
+#' @param prefix_r prefix for cell names from second smat in case of conflicts
+#' 
+#' @return smat object with intervals joined by \code{type}_join
+#' 
 #' @export
 smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_'){
     join_func <- switch(type, 
@@ -37,18 +45,23 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
         right = right_join, 
         semi = semi_join, 
         anti = anti_join)
-
+    
     message('merging intervals')
     intervs <- smat_l$intervs %>%
         select(-id) %>% 
-        join_func(smat_r$intervs %>% select(-id), by=c('chrom', 'start', 'end'))
+        join_func(smat_r$intervs %>% select(-id), by=c('chrom', 'start', 'end')) %>%
+        mutate(id = 1:n())
 
     message('merging sparse matrices')
-    df_l <- smat.to_df(smat_l) %>% select(-id)
-    df_r <- smat.to_df(smat_r) %>% select(-id)
+    df_r <- smat.to_df(smat_r) %>% select(-id)        
+    df_l <- smat.to_df(smat_l) %>% select(-id)       
+    
 
-    conf_names <- df_l %>% distinct(cell) %>% 
-        inner_join(df_r %>% distinct(cell), by='cell') %>% .$cell
+    conf_names <- df_l %>%
+        distinct(cell) %>% 
+        inner_join(df_r %>% 
+            distinct(cell), by='cell') %>%
+        pull(cell)
 
     if (length(conf_names) > 0){
         warning(qq('conflicting names, adding prefixes: @{paste(conf_names, collapse=", ")}'))
@@ -60,7 +73,25 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
     df <- bind_rows(df_l, df_r) %>% inner_join(intervs, by=c('chrom', 'start', 'end'))    
 
     message('creting smat from df')
-    return(smat.from_df(df))    
+    smat <- smat.from_df(df)
+
+    if (has_stats(smat_l) && has_stats(smat_r) && length(conf_names) == 0){
+        smat$stats <- bind_rows(smat_l$stats, smat_r$stats)
+    }
+    return(smat)    
+}
+
+#' join multiple smat objects
+#' 
+#' @param ... smat objects to join
+#' @inheritParams smat.join
+#' 
+#' @return joined smat objects
+#' 
+#' @export
+smat.multi_join <- function(..., type='full', prefix_l='l_', prefix_r='r_'){
+    matrices <- list(...)    
+    reduce(matrices, smat.join, type=type, prefix_l=prefix_l, prefix_r=prefix_r)
 }
 
 #' Save smat object to disk
@@ -86,6 +117,18 @@ smat.save <- function(smat, prefix){
     if (has_stats(smat)){
         fwrite(smat$stats, paste0(prefix, '_stats.tsv'))
     }
+
+    attributes <- list()
+    for (attr in c('name', 'description')){
+        if (has_name(smat, attr)){
+            attributes[[attr]] <- smat[[attr]]    
+        }        
+    }
+
+    if (length(attributes) > 0){
+        readr::write_lines(yaml::as.yaml(attributes), paste0(prefix, '_attributes.yaml'))
+    }
+
     invisible(smat)
 }
 
@@ -109,6 +152,11 @@ smat.load <- function(prefix){
     if (file.exists(paste0(prefix, '_stats.tsv'))){
         conf$sparse_matrix$stats <- paste0(prefix, '_stats.tsv')
     }
+
+    attributes_file <- paste0(prefix, '_attributes.yaml') 
+    if (file.exists(yaml_file)){
+        conf$sparse_matrix$attributes_file <- yaml_file        
+    }
     return(smat.from_conf(conf))
 }
 
@@ -120,6 +168,7 @@ smat.load <- function(prefix){
 #' unmeth - path of unmeth sparse matrix
 #' intervs - path of intervs file
 #' colnames - path of colnames file
+#' attributes_file - path of attributes yaml file (optional)
 #'
 #' @return smat object
 #'
@@ -141,6 +190,12 @@ smat.from_conf <- function(conf){
 
     if (has_name(conf$sparse_matrix, 'stats')){
         smat$stats <- fread(conf$sparse_matrix$stats) %>% tbl_df()
+    }
+    if (has_name(conf$sparse_matrix, 'attributes_file')){
+        attributes <- yaml::yaml.load_file(conf$sparse_matrix$attributes_file)
+        for (attr in names(attributes)){
+            smat[[attr]] <- attributes[[attr]]
+        }
     }
     return(smat)
 }

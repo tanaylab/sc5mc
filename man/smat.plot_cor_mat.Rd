@@ -6,7 +6,7 @@
 \usage{
 smat.plot_cor_mat(smat, row_ord = NULL, col_ord = NULL,
   show_colnames = FALSE, show_rownames = FALSE, breaks = NULL,
-  color_pal = NULL, ...)
+  color_pal = NULL, title = TRUE, ...)
 }
 \arguments{
 \item{smat}{smat object}
@@ -20,6 +20,8 @@ smat.plot_cor_mat(smat, row_ord = NULL, col_ord = NULL,
 \item{show_rownames}{show row names}
 
 \item{color_pal}{color pallete}
+
+\item{title}{show title}
 
 \item{...}{other parameters of pheatmap1}
 }

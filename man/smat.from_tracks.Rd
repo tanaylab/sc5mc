@@ -4,7 +4,8 @@
 \alias{smat.from_tracks}
 \title{Create smat object from misha tracks}
 \usage{
-smat.from_tracks(tracks, libs, prefix = NULL, use_sge = TRUE, ...)
+smat.from_tracks(tracks, libs, prefix = NULL, use_sge = TRUE, name = "",
+  description = "", ...)
 }
 \arguments{
 \item{tracks}{names of tracks}
@@ -15,6 +16,10 @@ smat.from_tracks(tracks, libs, prefix = NULL, use_sge = TRUE, ...)
 would not be written to disk}
 
 \item{use_sge}{use sun grid engine cluster}
+
+\item{name}{name of the object}
+
+\item{description}{description of the object}
 
 \item{...}{additional parameters to gcluster.run2}
 }

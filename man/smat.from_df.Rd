@@ -4,11 +4,15 @@
 \alias{smat.from_df}
 \title{Create smat object from data frame}
 \usage{
-smat.from_df(df)
+smat.from_df(df, name = "", description = "")
 }
 \arguments{
-\item{df}{intervals (chrom, start, end fields) data frame with additonal fields:
+\item{df}{intervals ('chrom', 'start', 'end' fields) with additional fields:
 meth (methylated calls), unmeth (unmethylated calls) and cov (total coverage)}
+
+\item{name}{name of the object}
+
+\item{description}{description of the object}
 }
 \value{
 smat object

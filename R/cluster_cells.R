@@ -187,7 +187,7 @@ smat.calc_pdiff_cor <- function(smat, min_cells=10, min_cgs=100, use='pairwise.c
         smat  <- smat.calc_pdiff(smat, min_cgs=min_cgs, intervs=intervs, cols=cols, samp_data=samp_data)
     }    
 
-    message('calculating pairwise correlations...')
+    message('calculating pairwise correlations...')    
     smat$cell_cor <- sc5mc.calc_pdiff_cor(smat$cell_comp, min_cells=min_cells, use=use, method=method)
     return(smat)
 }
@@ -306,6 +306,7 @@ sc5mc.plot_cor_mat <- function(cell_cor,
 #' plot cell cell correlation matrix
 #' 
 #' @param smat smat object
+#' @param title show title
 #' @inheritParams sc5mc.plot_cor_mat
 #'
 #' @export
@@ -315,7 +316,8 @@ smat.plot_cor_mat <- function(smat,
                                show_colnames = FALSE,
                                show_rownames = FALSE,
                                breaks = NULL,
-                               color_pal = NULL,                               
+                               color_pal = NULL,    
+                               title = TRUE,                           
                                ...) {
     if (!('cell_cor' %in% names(smat))){
         stop('No "cell_cor" field. Please run smat.cluster_cells() first')
@@ -333,7 +335,19 @@ smat.plot_cor_mat <- function(smat,
         cluster_cols <- FALSE
     }
 
-    sc5mc.plot_cor_mat(smat$cell_cor, row_ord=row_ord, col_ord=col_ord, show_rownames=show_colnames, breaks=breaks, color_pal=color_pal, cluster_rows=cluster_rows, cluster_cols=cluster_cols, ...)
+    if (title){
+        if (has_name(smat, 'name')){
+            name_str <- glue('{smat$name}\n')
+        } else {
+            name_str <- ''
+        }
+        cell_num <- length(unique(smat_f$cell_cor$cell2))
+        main <- glue('{name_str}{comify(cell_num)} cells')
+    } else {
+        main <- NA
+    }
+
+    sc5mc.plot_cor_mat(smat$cell_cor, row_ord=row_ord, col_ord=col_ord, show_rownames=show_colnames, breaks=breaks, color_pal=color_pal, cluster_rows=cluster_rows, cluster_cols=cluster_cols, main=main,  ...)
 }
 
 
