@@ -17,6 +17,7 @@
 #'
 #' @export
 smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', ...){
+
     bam2calls <- function(bams, lib, workdir=workdir, use_sge=TRUE){                  
         track_workdir <- tempfile(tmpdir=workdir)
         system(sprintf('mkdir -p %s', track_workdir))
@@ -58,7 +59,7 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
 
     tidy_calls <- tidy_calls %>% mutate(unmeth = if_else(meth == 0, 1, 0), cov=1)
 
-    smat <- .tidy_calls2smat(tidy_calls)
+    smat <- .tidy_calls2smat(tidy_calls %>% ungroup() %>% mutate(id = 1:n()))
     smat$stats <- stats
     smat$name <- name
     smat$description <- description
@@ -136,8 +137,9 @@ smat.from_df <- function(df, name='', description=''){
 
 # Utils
 
-.tidy_calls2smat <- function(tidy_calls, column_name='track'){   
-    tidy_calls <- tidy_calls %>% mutate(id = as.character(id)) 
+.tidy_calls2smat <- function(tidy_calls, column_name='track'){     
+    tidy_calls <- tidy_calls %>% mutate(id = as.character(id))
+
     smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))
         tidy2smat(tidy_calls, 'id', column_name, x)
@@ -183,6 +185,5 @@ tcpgs2calls <- function(tcpgs, track){
         arrange(chrom, cg_pos) %>%
         distinct(chrom, cg_pos, .keep_all=T) %>%
         mutate(start=cg_pos, end=start+1, track=track) %>%
-        select(track, chrom, start, end, meth) %>%
-        unite('coord', chrom:end)
+        select(track, chrom, start, end, meth)
 }
