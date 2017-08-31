@@ -2,26 +2,49 @@
 #' 
 #' 
 #' @param cpg_pairs_min_cells minimal number of CpGs to consider in cg_pairs plot
+#' @param ofn output file
+#' @param ... additional parameters for cowplot::save_plot
+#' @inheritParams cowplot::save_plot
 #' @inheritParams smat.filter_by_cov
 #'
 #' @return plot
 #' 
 #' @export
-sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20){
+sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20, ofn=NULL, width=8, base_height=7, ...){
 	if (any(min_cpgs != 1, max_cpgs != Inf,  min_cells != 1, max_cells != Inf)){
 		smat <- smat.filter_by_cov(smat, min_cells=min_cells, max_cells=max_cells, max_cpgs=max_cpgs, min_cpgs=min_cpgs)
 	}
-	cgp_mars <- sc5mc.plot_cpg_marginals(smat, type='percent')
+	message('calculating CpG marginals')
+	cpg_mars <- sc5mc.plot_cpg_marginals(smat, type='percent')
+	cg_pairs_mars <- sc5mc.plot_cpg_marginals_bars(smat)
+
+	message('calculating cell marginals')
 	cell_mars <- sc5mc.plot_cell_marginals(smat, type='percent')
+
+	message('calculating cell pairs')
 	cell_pairs_mars <- sc5mc.plot_cell_pairs_coverage(smat)
-	cg_pairs_mars <- sc5mc.plot_cg_pairs_coverage(smat, min_cells=cpg_pairs_min_cells)
-	figs <- list(cgp_mars, cell_mars, cell_pairs_mars, cg_pairs_mars)
+
+	# message('calculating CpG pairs')	
+	# cg_pairs_mars <- sc5mc.plot_cg_pairs_coverage(smat, min_cells=cpg_pairs_min_cells)
+
+	figs <- list(cpg_mars, cg_pairs_mars, cell_mars, cell_pairs_mars)
+	# figs <- list(cpg_mars, cell_mars, cell_pairs_mars, cg_pairs_mars)
 
 	if (has_stats(smat)){		
 		figs[['reads_per_cpg']] <- sc5mc.plot_reads_per_cpg(smat)
 		figs[['conversion']] <- sc5mc.plot_conversion(smat)				
 	}
+
 	p <- cowplot::plot_grid(plotlist=figs, align='hv', labels="AUTO", ncol=2)
+	
+	if (has_name(smat, 'name')){
+		p_title <- cowplot::ggdraw() + cowplot::draw_label(smat$name, fontface='bold')
+		p <- plot_grid(p_title, p, ncol=1, rel_heights=c(0.05, 1, 0.3))
+	}	
+
+	if (!is.null(ofn)){
+		cowplot::save_plot(ofn, p, base_height=base_height, ...)
+	}
 	return(p)
 }
 
@@ -49,6 +72,13 @@ sc5mc.plot_conversion <- function(smat){
 	p <- stats %>% ggplot(aes(x=CHH)) + geom_density() + scale_x_continuous(labels=scales::percent) + xlab('%C not in CpG context (CHH)')
 	return(p)
 }
+
+
+sc5mc.plot_cpg_marginals_bars <- function(smat){
+	mars <- smat.cpg_marginals(smat)
+	tribble(~k, ~cpgs, 2, sum(mars$cells >= 2), 5, sum(mars$cells >= 5), 10, sum(mars$cells >= 10)) %>% ggplot(aes(x=factor(k), y=log10(cpgs))) + geom_col(width=0.7, fill='darkblue') + scale_y_continuous(labels=comify) + ylab('log10(# of CpGs covered by at least x cells)') + xlab('cells')
+}
+
 
 #' plot cpg marginals
 #' 

@@ -47,16 +47,16 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
         anti = anti_join)
     
     message('merging intervals')
-    intervs <- smat_l$intervs %>%
+
+    intervs <- smat_l$intervs %>%        
         select(-id) %>% 
         join_func(smat_r$intervs %>% select(-id), by=c('chrom', 'start', 'end')) %>%
         mutate(id = 1:n())
-
+    
     message('merging sparse matrices')
     df_r <- smat.to_df(smat_r) %>% select(-id)        
     df_l <- smat.to_df(smat_l) %>% select(-id)       
     
-
     conf_names <- df_l %>%
         distinct(cell) %>% 
         inner_join(df_r %>% 
@@ -72,7 +72,7 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
     # smat.from_df
     df <- bind_rows(df_l, df_r) %>% inner_join(intervs, by=c('chrom', 'start', 'end'))    
 
-    message('creting smat from df')
+    message('creating smat from df')
     smat <- smat.from_df(df)
 
     if (has_stats(smat_l) && has_stats(smat_r) && length(conf_names) == 0){
@@ -105,17 +105,18 @@ smat.multi_join <- function(..., type='full', prefix_l='l_', prefix_r='r_'){
 #' @export
 smat.save <- function(smat, prefix){
     res <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
-        message(sprintf('creating %s', x))
+        message(sprintf('saving %s', x))
         Matrix::writeMM(smat[[x]], paste0(prefix, '.', x))
     }, .parallel=TRUE)
 
-    tibble(cell = smat.colnames(smat)) %>% fwrite(paste0(prefix, '_colnames.tsv'))
+    tibble(cell = smat.colnames(smat)) %>% fwrite(paste0(prefix, '_colnames.tsv'), sep='\t')
 
-    message('creating intervs')
-    tibble(coord = rownames(smat$cov)) %>% separate(coord, c('chrom', 'start', 'end')) %>% fwrite(paste0(prefix, '_intervs.tsv'))
+    message('saving intervs')
+    fwrite(smat$intervs, paste0(prefix, '_intervs.tsv'), sep='\t')    
 
     if (has_stats(smat)){
-        fwrite(smat$stats, paste0(prefix, '_stats.tsv'))
+        message('saving stats')
+        fwrite(smat$stats, paste0(prefix, '_stats.tsv'), sep='\t')
     }
 
     attributes <- list()
@@ -126,6 +127,7 @@ smat.save <- function(smat, prefix){
     }
 
     if (length(attributes) > 0){
+        message('saving attributes')
         readr::write_lines(yaml::as.yaml(attributes), paste0(prefix, '_attributes.yaml'))
     }
 
@@ -154,8 +156,8 @@ smat.load <- function(prefix){
     }
 
     attributes_file <- paste0(prefix, '_attributes.yaml') 
-    if (file.exists(yaml_file)){
-        conf$sparse_matrix$attributes_file <- yaml_file        
+    if (file.exists(attributes_file)){
+        conf$sparse_matrix$attributes_file <- attributes_file        
     }
     return(smat.from_conf(conf))
 }
@@ -174,7 +176,7 @@ smat.load <- function(prefix){
 #'
 #' @export
 smat.from_conf <- function(conf){
-    mat_colnames <- read_csv(conf$sparse_matrix$colnames, col_types=cols(col_character()))[[1]]
+    mat_colnames <- fread(conf$sparse_matrix$colnames) %>% as.tibble() %>% pull(1)
 
     smat <- plyr::alply(c('cov', 'meth', 'unmeth'), 1, function(x) {
         message(sprintf('loading %s', x))

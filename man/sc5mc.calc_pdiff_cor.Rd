@@ -4,17 +4,17 @@
 \alias{sc5mc.calc_pdiff_cor}
 \title{Calculate pairwise correlation of cells pdiff}
 \usage{
-sc5mc.calc_pdiff_cor(cell_comp, min_cells, use = "pairwise.complete.obs",
-  method = "spearman", cells = NULL)
+sc5mc.calc_pdiff_cor(cell_comp, min_cells, pairwise.complete.obs = TRUE,
+  spearman = TRUE, cells = NULL)
 }
 \arguments{
 \item{cell_comp}{Output of \code{sc5mc.calc_pdiff}: data frame with pairs of cells (cell1, cell2) and 'pdiff' column with the fraction of different CpGs.}
 
 \item{min_cells}{minimal number of cells with pdiff statistic in both cells}
 
-\item{use}{`use` parameter of `cor` function}
+\item{pairwise.complete.obs}{if TRUE: similar to use = 'pairwise.complete.obs' in \code{cor}. if FALSE: similar to use = 'everything'}
 
-\item{method}{`method` parameter of `cor` function}
+\item{spearman}{if 'TRUE' Spearman correlation is computed, otherwise Pearson}
 
 \item{cells}{vector with cell names of cells to operate on. If NULL calculation would be 
 done on all cells.}
