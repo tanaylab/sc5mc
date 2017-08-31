@@ -5,7 +5,7 @@
 \title{calculate pairwise correlation of cells pdiff}
 \usage{
 smat.calc_pdiff_cor(smat, min_cells = 10, min_cgs = 100,
-  use = "pairwise.complete.obs", method = "spearman", intervs = NULL,
+  pairwise.complete.obs = TRUE, spearman = TRUE, intervs = NULL,
   cols = NULL, samp_data = NULL)
 }
 \arguments{
@@ -15,9 +15,9 @@ smat.calc_pdiff_cor(smat, min_cells = 10, min_cgs = 100,
 
 \item{min_cgs}{minimal number of cpgs covered in both cells}
 
-\item{use}{`use` parameter of `cor` function}
+\item{pairwise.complete.obs}{if TRUE: similar to use = 'pairwise.complete.obs' in \code{cor}. if FALSE: similar to use = 'everything'}
 
-\item{method}{`method` parameter of `cor` function}
+\item{spearman}{if 'TRUE' Spearman correlation is computed, otherwise Pearson}
 
 \item{intervs}{intervals set to filter smat by before calculating. if NULL
 all CpGs would be used.}

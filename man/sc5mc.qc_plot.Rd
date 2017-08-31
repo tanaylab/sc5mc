@@ -5,7 +5,8 @@
 \title{Plot QC statistics of smat object}
 \usage{
 sc5mc.qc_plot(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
-  max_cells = Inf, cpg_pairs_min_cells = 20)
+  max_cells = Inf, cpg_pairs_min_cells = 20, ofn = NULL, width = 8,
+  base_height = 7, ...)
 }
 \arguments{
 \item{smat}{smat object}
@@ -19,6 +20,13 @@ sc5mc.qc_plot(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
 \item{max_cells}{maximal number of cells}
 
 \item{cpg_pairs_min_cells}{minimal number of CpGs to consider in cg_pairs plot}
+
+\item{ofn}{output file}
+
+\item{base_height}{The height (in inches) of the plot or of one sub-plot if \code{nrow}
+or \code{ncol} > 1. Default is 4.}
+
+\item{...}{additional parameters for cowplot::save_plot}
 }
 \value{
 plot

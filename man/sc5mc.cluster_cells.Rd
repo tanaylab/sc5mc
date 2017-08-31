@@ -5,7 +5,7 @@
 \title{Cluster cells}
 \usage{
 sc5mc.cluster_cells(smat, min_cells = 10, min_cgs = 100,
-  use = "pairwise.complete.obs", method = "spearman",
+  pairwise.complete.obs = TRUE, spearman = TRUE,
   clustering_distance = "euclidean", clustering_method = "ward.D2",
   intervs = NULL, cols = NULL, samp_data = NULL, plot = FALSE, ...)
 }
@@ -16,9 +16,9 @@ sc5mc.cluster_cells(smat, min_cells = 10, min_cgs = 100,
 
 \item{min_cgs}{minimal number of cpgs covered in both cells}
 
-\item{use}{`use` parameter of `cor` function}
+\item{pairwise.complete.obs}{if TRUE: similar to use = 'pairwise.complete.obs' in \code{cor}. if FALSE: similar to use = 'everything'}
 
-\item{method}{`method` parameter of `cor` function}
+\item{spearman}{if 'TRUE' Spearman correlation is computed, otherwise Pearson}
 
 \item{clustering_distance}{distance measure used for clustering the correlations}
 

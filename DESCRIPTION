@@ -8,19 +8,20 @@ Description: Package for analysis of single cell methylation (sc5mc).
 URL: https://bitbucket.org/tanaylab/sc5mc
 Depends:
     R (>= 3.2.2),
-    misha (>= 3.5.6),
+    misha (>= 3.5.4),
     gpatterns
 Imports: 
-	Matrix,		
+	Matrix,	
+	tibble,	
 	dplyr,	
 	purrr,
 	ggplot2,		
-	ggpmisc,
 	dendsort,
 	broom,
 	zoo,
 	cowplot,
 	tglkmeans,
+	tgstat,
 	glue,
 	yaml
 Remotes: bitbucket::tanaylab/tglkmeans@default

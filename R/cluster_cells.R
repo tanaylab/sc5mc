@@ -20,9 +20,9 @@
 #' If plot is TRUE the smat object is returned invisibly
 #' 
 #' @export
-sc5mc.cluster_cells <- function(smat, min_cells=10, min_cgs=100, use='pairwise.complete.obs', method='spearman', clustering_distance = 'euclidean',  clustering_method = 'ward.D2', intervs=NULL, cols=NULL, samp_data=NULL, plot=FALSE, ...){
+sc5mc.cluster_cells <- function(smat, min_cells=10, min_cgs=100, pairwise.complete.obs=TRUE, spearman=TRUE, clustering_distance = 'euclidean',  clustering_method = 'ward.D2', intervs=NULL, cols=NULL, samp_data=NULL, plot=FALSE, ...){
 
-    smat <- smat.cluster_cells(smat=smat, min_cells=min_cells, min_cgs=min_cgs, use=use, method=method, clustering_distance=clustering_distance, clustering_method=clustering_method, intervs=intervs, cols=cols, samp_data=samp_data, plot=plot, ...)
+    smat <- smat.cluster_cells(smat=smat, min_cells=min_cells, min_cgs=min_cgs, pairwise.complete.obs=pairwise.complete.obs, spearman=spearman, clustering_distance=clustering_distance, clustering_method=clustering_method, intervs=intervs, cols=cols, samp_data=samp_data, plot=plot, ...)
   
     res <- list(cell_comp = smat$cell_comp,
                 cell_cor = smat$cell_cor, 
@@ -48,15 +48,15 @@ sc5mc.cluster_cells <- function(smat, min_cells=10, min_cgs=100, use='pairwise.c
 #' If plot is TRUE the smat object is returned invisibly
 #' 
 #' @export
-smat.cluster_cells <- function(smat, min_cells=10, min_cgs=100, use='pairwise.complete.obs', method='spearman', clustering_distance = 'euclidean',  clustering_method = 'ward.D2', intervs=NULL, cols=NULL, samp_data=NULL, plot=FALSE, ...){
-    smat <- smat.calc_pdiff_cor(smat=smat, min_cells=min_cells, min_cgs=min_cgs, use=use, method=method, intervs=intervs, cols=cols, samp_data=samp_data)
+smat.cluster_cells <- function(smat, min_cells=10, min_cgs=100, pairwise.complete.obs=TRUE, spearman=TRUE, clustering_method = 'ward.D2', intervs=NULL, cols=NULL, samp_data=NULL, plot=FALSE, ...){
+    smat <- smat.calc_pdiff_cor(smat=smat, min_cells=min_cells, min_cgs=min_cgs, pairwise.complete.obs=pairwise.complete.obs, spearman=spearman, intervs=intervs, cols=cols, samp_data=samp_data)
 
     smat$cell_cor_mat <- smat[['cell_cor']] %>% filter(cell1 != cell2) %>% spread(cell2, corr) %>% select(-cell1) %>% as.matrix()
     mat <- smat$cell_cor_mat
 
     message('clustering...')
-    smat$cell_cor_hclust_cols <- dist(t(mat), method = clustering_distance) %>% hclust(method = clustering_method) %>%  dendsort::dendsort()
-    smat$cell_cor_hclust_rows <- dist(mat, method = clustering_distance) %>% hclust(method = clustering_method) %>%  dendsort::dendsort()
+    smat$cell_cor_hclust_cols <- tgstat::tgs_dist(t(mat)) %>% hclust(method = clustering_method) %>% dendsort::dendsort()
+    smat$cell_cor_hclust_rows <- tgstat::tgs_dist(mat) %>% hclust(method = clustering_method) %>% dendsort::dendsort()
 
     if (plot){
         sc5mc.plot_cor_mat(smat$cell_cor, cluster_rows=smat$cell_cor_hclust_rows, cluster_cols=smat$cell_cor_hclust_cols, ...)
@@ -136,14 +136,14 @@ smat.calc_pdiff <- function(smat, min_cgs=100, intervs=NULL, cols=NULL, samp_dat
 #' @param cell_comp Output of \code{sc5mc.calc_pdiff}: data frame with pairs of cells (cell1, cell2) and 'pdiff' column with the fraction of different CpGs.
 #'
 #' @param min_cells minimal number of cells with pdiff statistic in both cells
-#' @param use `use` parameter of `cor` function
-#' @param method `method` parameter of `cor` function
+#' @param pairwise.complete.obs if TRUE: similar to use = 'pairwise.complete.obs' in \code{cor}. if FALSE: similar to use = 'everything'
+#' @param spearman if 'TRUE' Spearman correlation is computed, otherwise Pearson
 #' @param cells vector with cell names of cells to operate on. If NULL calculation would be 
 #' done on all cells.
 #' 
 #'
 #' @export
-sc5mc.calc_pdiff_cor <- function(cell_comp, min_cells, use='pairwise.complete.obs', method='spearman', cells=NULL){
+sc5mc.calc_pdiff_cor <- function(cell_comp, min_cells, pairwise.complete.obs=TRUE, spearman=TRUE, cells=NULL){
     cell_comp <- cell_comp %>% select(cell1, cell2, pdiff)
 
     if (!is.null(cells)){
@@ -165,7 +165,7 @@ sc5mc.calc_pdiff_cor <- function(cell_comp, min_cells, use='pairwise.complete.ob
         .[,-1] %>%
         as.matrix()
 
-    cell_cor <- cor(cell_comp, use=use, method=method) %>%
+    cell_cor <- tgstat::tgs_cor(cell_comp, pairwise.complete.obs = pairwise.complete.obs, spearman = spearman) %>%
         reshape2::melt() %>%
         rename(cell1=Var1, cell2=Var2, corr=value) %>%
         tbl_df
@@ -182,13 +182,13 @@ sc5mc.calc_pdiff_cor <- function(cell_comp, min_cells, use='pairwise.complete.ob
 #' @return smat object with cell_cor field 
 #'
 #' @export
-smat.calc_pdiff_cor <- function(smat, min_cells=10, min_cgs=100, use='pairwise.complete.obs', method='spearman', intervs=NULL, cols=NULL, samp_data=NULL){
+smat.calc_pdiff_cor <- function(smat, min_cells=10, min_cgs=100, pairwise.complete.obs=TRUE, spearman=TRUE, intervs=NULL, cols=NULL, samp_data=NULL){
     if (!('cell_comp' %in% names(smat))){        
         smat  <- smat.calc_pdiff(smat, min_cgs=min_cgs, intervs=intervs, cols=cols, samp_data=samp_data)
     }    
 
     message('calculating pairwise correlations...')    
-    smat$cell_cor <- sc5mc.calc_pdiff_cor(smat$cell_comp, min_cells=min_cells, use=use, method=method)
+    smat$cell_cor <- sc5mc.calc_pdiff_cor(smat$cell_comp, min_cells=min_cells, pairwise.complete.obs=pairwise.complete.obs, spearman=spearman)
     return(smat)
 }
 
@@ -244,14 +244,14 @@ sc5mc.calc_pdiff_rows <- function(smat, min_cells=5, intervs=NULL, cols=NULL){
 #' @param row_comp
 #'
 #' @param min_intervals
-#' @param use
-#' @param method
+#' @param spearman
+#' @param pairwise.complete.obs
 #' @param intervals
 #'
 #' @export
-sc5mcs.calc_pdiff_cor_rows <- function(row_comp, min_intervals, use='pairwise.complete.obs', method='spearman', intervals=NULL){
+sc5mcs.calc_pdiff_cor_rows <- function(row_comp, min_intervals, pairwise.complete.obs=TRUE, spearman=TRUE, intervals=NULL){
     row_comp <- row_comp %>% rename(cell1 = interval1, cell2 = interval2)
-    row_cor <- sc5mc.calc_pdiff_cor(row_comp, min_cells=min_intervals, use=use, method=method, cells=intervals)
+    row_cor <- sc5mc.calc_pdiff_cor(row_comp, min_cells=min_intervals, pairwise.complete.obs=pairwise.complete.obs, spearman=spearman, cells=intervals)
     row_cor <- row_cor %>% rename(interval1 = cell1, interval2 = cell2)
     return(row_cor)
 }

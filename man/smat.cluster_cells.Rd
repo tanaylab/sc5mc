@@ -5,9 +5,9 @@
 \title{Cluster cells}
 \usage{
 smat.cluster_cells(smat, min_cells = 10, min_cgs = 100,
-  use = "pairwise.complete.obs", method = "spearman",
-  clustering_distance = "euclidean", clustering_method = "ward.D2",
-  intervs = NULL, cols = NULL, samp_data = NULL, plot = FALSE, ...)
+  pairwise.complete.obs = TRUE, spearman = TRUE,
+  clustering_method = "ward.D2", intervs = NULL, cols = NULL,
+  samp_data = NULL, plot = FALSE, ...)
 }
 \arguments{
 \item{smat}{smat object}
@@ -16,11 +16,9 @@ smat.cluster_cells(smat, min_cells = 10, min_cgs = 100,
 
 \item{min_cgs}{minimal number of cpgs covered in both cells}
 
-\item{use}{`use` parameter of `cor` function}
+\item{pairwise.complete.obs}{if TRUE: similar to use = 'pairwise.complete.obs' in \code{cor}. if FALSE: similar to use = 'everything'}
 
-\item{method}{`method` parameter of `cor` function}
-
-\item{clustering_distance}{distance measure used for clustering the correlations}
+\item{spearman}{if 'TRUE' Spearman correlation is computed, otherwise Pearson}
 
 \item{clustering_method}{clustering method used for clustering the correlations. Accepts the same values as ‘hclust’.}
 
