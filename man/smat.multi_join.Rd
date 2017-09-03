@@ -9,7 +9,7 @@ smat.multi_join(..., type = "full", prefix_l = "l_", prefix_r = "r_")
 \arguments{
 \item{...}{smat objects to join}
 
-\item{type}{join type. can be 'inner', 'full', 'left', 'right', 'semi' and 'anti'. uses xx_join by dplyr package.}
+\item{type}{join type. can be 'inner', 'full', 'left', 'right'. see xx_join by dplyr package.}
 
 \item{prefix_l}{prefix for cell names from first smat in case of conflicts}
 

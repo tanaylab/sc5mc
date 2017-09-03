@@ -11,7 +11,7 @@ smat.join(smat_r, smat_l, type = "full", prefix_l = "l_", prefix_r = "r_")
 
 \item{smat_l}{seconf smat object}
 
-\item{type}{join type. can be 'inner', 'full', 'left', 'right', 'semi' and 'anti'. uses xx_join by dplyr package.}
+\item{type}{join type. can be 'inner', 'full', 'left', 'right'. see xx_join by dplyr package.}
 
 \item{prefix_l}{prefix for cell names from first smat in case of conflicts}
 
