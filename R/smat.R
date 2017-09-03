@@ -30,29 +30,23 @@ smat.to_marginal_track <- function(smat, track, description, cols=NULL, overwrit
 #' 
 #' @param smat_r first smat object
 #' @param smat_l seconf smat object
-#' @param type join type. can be 'inner', 'full', 'left', 'right', 'semi' and 'anti'. uses xx_join by dplyr package.
+#' @param type join type. can be 'inner', 'full', 'left', 'right'. see xx_join by dplyr package.
 #' @param prefix_l prefix for cell names from first smat in case of conflicts
 #' @param prefix_r prefix for cell names from second smat in case of conflicts
 #' 
 #' @return smat object with intervals joined by \code{type}_join
 #' 
 #' @export
-smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_'){
+smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_'){ 
     join_func <- switch(type, 
-        inner = inner_join, 
-        full = full_join, 
-        left = left_join, 
-        right = right_join, 
-        semi = semi_join, 
-        anti = anti_join)
+        inner = gintervals.intersect, 
+        full = gintervals.union, 
+        left = function(l, r) gintervals.intersect(gintervals.union(l,r), l), 
+        right = function(l, r) gintervals.intersect(gintervals.union(l,r), r))
     
-    message('merging intervals')
+    message(sprintf('merging intervals, join type: %s', type))
+    intervs <- join_func(smat_l$intervs, smat_r$intervs) %>% mutate(id = 1:n())
 
-    intervs <- smat_l$intervs %>%        
-        select(-id) %>% 
-        join_func(smat_r$intervs %>% select(-id), by=c('chrom', 'start', 'end')) %>%
-        mutate(id = 1:n())
-    
     message('merging sparse matrices')
     df_r <- smat.to_df(smat_r) %>% select(-id)        
     df_l <- smat.to_df(smat_l) %>% select(-id)       
@@ -73,11 +67,17 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
     df <- bind_rows(df_l, df_r) %>% inner_join(intervs, by=c('chrom', 'start', 'end'))    
 
     message('creating smat from df')
-    smat <- smat.from_df(df)
+    smat <- smat.from_df(df, intervs=intervs)
 
     if (has_stats(smat_l) && has_stats(smat_r) && length(conf_names) == 0){
         smat$stats <- bind_rows(smat_l$stats, smat_r$stats)
     }
+    if (has_cell_metadata(smat_l) && has_cell_metadata(smat_r) && length(conf_names) == 0){
+        smat$cell_metadata <- bind_rows(smat_l$cell_metadata, smat_r$cell_metadata)
+    }    
+
+    gc()
+    
     return(smat)    
 }
 
@@ -91,7 +91,7 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
 #' @export
 smat.multi_join <- function(..., type='full', prefix_l='l_', prefix_r='r_'){
     matrices <- list(...)    
-    reduce(matrices, smat.join, type=type, prefix_l=prefix_l, prefix_r=prefix_r)
+    purrr::reduce(matrices, smat.join, type=type, prefix_l=prefix_l, prefix_r=prefix_r)
 }
 
 #' Save smat object to disk
@@ -117,6 +117,11 @@ smat.save <- function(smat, prefix){
     if (has_stats(smat)){
         message('saving stats')
         fwrite(smat$stats, paste0(prefix, '_stats.tsv'), sep='\t')
+    }
+
+    if (has_name(smat, 'cell_metadata')){
+        message('saving cell metadata')
+        fwrite(smat$cell_metadata, paste0(prefix, '_cell_metadata.tsv'), sep='\t')
     }
 
     attributes <- list()
@@ -159,6 +164,11 @@ smat.load <- function(prefix){
     if (file.exists(attributes_file)){
         conf$sparse_matrix$attributes_file <- attributes_file        
     }
+
+    cell_metadata_file <- paste0(prefix, '_cell_metadata.tsv')
+    if (file.exists(cell_metadata_file)){
+        conf$sparse_matrix$cell_metadata <- cell_metadata_file
+    }
     return(smat.from_conf(conf))
 }
 
@@ -198,6 +208,9 @@ smat.from_conf <- function(conf){
         for (attr in names(attributes)){
             smat[[attr]] <- attributes[[attr]]
         }
+    }
+    if (has_name(conf$sparse_matrix, 'cell_metadata')){
+        smat$cell_metadata <- fread(conf$sparse_matrix$cell_metadata) %>% tbl_df()
     }
     return(smat)
 }
@@ -301,7 +314,7 @@ smat.cell_pairs_marginals <- function(smat, cols=NULL){
 
     ntot <- crossprod(smat$cov[, ids]) %>% as.matrix() %>% reshape2::melt() %>% rename(cell1=Var1, cell2=Var2, ntot=value)
 
-    ntot <- combn(smat.colnames(smat)[ids], 2) %>% t() %>% tbl_df %>% set_names(c('cell1', 'cell2')) %>% inner_join(ntot, by=c('cell1', 'cell2'))
+    ntot <- combn(smat.colnames(smat)[ids], 2) %>% t() %>% tbl_df %>% purrr::set_names(c('cell1', 'cell2')) %>% inner_join(ntot, by=c('cell1', 'cell2'))
     
     return(ntot)
 }
@@ -327,8 +340,15 @@ smat.cpg_pairs_marginals <- function(smat, min_cells=30, cols=NULL){
     ntot <- tcrossprod(smat$cov[cgs, ids]) %>% broom::tidy()
     
     # add explicit zeroes and remove double counting
-    res <-  combn(1:length(cgs), 2) %>% t() %>% tbl_df %>% set_names(c('row', 'column')) %>% left_join(ntot, by=c('row', 'column')) %>% mutate(value = if_else(is.na(value), 0, value))
-    res <- res %>% count(value) %>% rename(ncells=value, npairs=n)
+    res <-  combn(1:length(cgs), 2) %>%
+        t() %>% 
+        tbl_df() %>%
+        purrr::set_names(c('row', 'column')) %>% 
+        left_join(ntot, by=c('row', 'column')) %>% 
+        mutate(value = if_else(is.na(value), 0, value))
+    res <- res %>% 
+        count(value) %>% 
+        rename(ncells=value, npairs=n)
 
     return(res)
 }
@@ -533,10 +553,10 @@ smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
 
     res <- smat$intervs %>%
         mutate(group = groups) %>%
-        plyr::ddply(.(group), summarise_per_group, .parallel=parallel) %>%
+        plyr::ddply(plyr::.(group), summarise_per_group, .parallel=parallel) %>%
         tbl_df %>%
         filter(ncpgs > 0) %>%
-        set_names(c(group_name, 'cell', 'ncpgs', 'meth', 'unmeth', 'avg'))
+        purrr::set_names(c(group_name, 'cell', 'ncpgs', 'meth', 'unmeth', 'avg'))
 
     return(res)
 }
@@ -581,5 +601,13 @@ smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, 
 
 has_stats <- function(smat){
     has_name(smat, 'stats')    
+}
+
+has_cell_metadata <- function(smat){
+    has_name(smat, 'cell_metadata')    
+}
+
+has_cpg_metadata <- function(smat){
+    has_name(smat, 'cpg_metadata')    
 }
 

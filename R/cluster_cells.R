@@ -88,7 +88,7 @@ sc5mc.calc_pdiff <- function(smat, min_cgs=100, intervs=NULL, cols=NULL, samp_da
         } else {
             stat <- crossprod(smat[[mat1_name]], smat[[mat2_name]])
         }
-        stat <- stat %>% as.matrix() %>% reshape2::melt() %>% set_names(c('cell1', 'cell2', column_name))
+        stat <- stat %>% as.matrix() %>% reshape2::melt() %>% purrr::set_names(c('cell1', 'cell2', column_name))
         return(stat)
     }
 
@@ -213,7 +213,7 @@ sc5mc.calc_pdiff_rows <- function(smat, min_cells=5, intervs=NULL, cols=NULL){
         } else {
             stat <- tcrossprod(smat[[mat1_name]], smat[[mat2_name]])
         }
-        stat <- stat %>% as.matrix() %>% reshape2::melt() %>% set_names(c('interval1', 'interval2', column_name))
+        stat <- stat %>% as.matrix() %>% reshape2::melt() %>% purrr::set_names(c('interval1', 'interval2', column_name))
         return(stat)
     }
 

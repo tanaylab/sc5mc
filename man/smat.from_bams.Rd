@@ -5,8 +5,8 @@
 \title{Create smat object from mapped reads (bam files)}
 \usage{
 smat.from_bams(metadata, groot, prefix = NULL, workdir = tempdir(),
-  use_sge = TRUE, name = "", description = "", keep_tidy_cpgs = FALSE,
-  load_existing = FALSE, io_saturation = TRUE, ...)
+  use_sge = TRUE, name = "", description = "", keep_tidy_cpgs = TRUE,
+  load_existing = FALSE, io_saturation = TRUE, cell_metadata = NULL, ...)
 }
 \arguments{
 \item{metadata}{data frame with 'lib' column with the library name (ususally cell id)
@@ -27,6 +27,8 @@ would not be written to disk}
 \item{description}{description of the object}
 
 \item{keep_tidy_cpgs}{keep tidy cpgs attached to the smat object}
+
+\item{load_existing}{load existing tidy cpgs}
 
 \item{...}{additional parameters to \code{gpatterns::gpatterns.import_from_bam}}
 }
