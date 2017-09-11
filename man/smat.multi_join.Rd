@@ -4,19 +4,15 @@
 \alias{smat.multi_join}
 \title{join multiple smat objects}
 \usage{
-smat.multi_join(..., type = "full", prefix_l = "l_", prefix_r = "r_")
+smat.multi_join(smat_list, type = "full")
 }
 \arguments{
-\item{...}{smat objects to join}
+\item{smat_list}{list of smat objects}
 
 \item{type}{join type. can be 'inner', 'full', 'left', 'right'. see xx_join by dplyr package.}
-
-\item{prefix_l}{prefix for cell names from first smat in case of conflicts}
-
-\item{prefix_r}{prefix for cell names from second smat in case of conflicts}
 }
 \value{
-joined smat objects
+joined smat object
 }
 \description{
 join multiple smat objects

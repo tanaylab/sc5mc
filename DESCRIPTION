@@ -13,10 +13,11 @@ Depends:
 Imports: 
 	Matrix,	
 	tibble,	
-	dplyr,	
+	dplyr,		
 	purrr,
 	ggplot2,		
 	dendsort,
+	data.table,
 	broom,
 	zoo,
 	cowplot,
