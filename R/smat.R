@@ -26,6 +26,7 @@ smat.to_marginal_track <- function(smat, track, description, cols=NULL, overwrit
     gpatterns:::.gpatterns.import_intervs_table(track, description, pileup, overwrite=overwrite)
 }
 
+
 #' join two smat objects
 #' 
 #' @param smat_r first smat object
@@ -64,14 +65,15 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
     }
     
     # smat.from_df
-    df <- bind_rows(df_l, df_r) %>% inner_join(intervs, by=c('chrom', 'start', 'end'))    
-
+    df <- bind_rows(df_l, df_r) %>% inner_join(intervs, by=c('chrom', 'start', 'end')) %>% arrange(id)
+    
     message('creating smat from df')
     smat <- smat.from_df(df, intervs=intervs)
 
     if (has_stats(smat_l) && has_stats(smat_r) && length(conf_names) == 0){
         smat$stats <- bind_rows(smat_l$stats, smat_r$stats)
     }
+
     if (has_cell_metadata(smat_l) && has_cell_metadata(smat_r) && length(conf_names) == 0){
         smat$cell_metadata <- bind_rows(smat_l$cell_metadata, smat_r$cell_metadata)
     }    
@@ -83,16 +85,47 @@ smat.join <- function(smat_r, smat_l, type='full', prefix_l='l_', prefix_r='r_')
 
 #' join multiple smat objects
 #' 
-#' @param ... smat objects to join
+#' @param smat_list list of smat objects
 #' @inheritParams smat.join
 #' 
-#' @return joined smat objects
+#' @return joined smat object
 #' 
 #' @export
-smat.multi_join <- function(..., type='full', prefix_l='l_', prefix_r='r_'){
-    matrices <- list(...)    
-    purrr::reduce(matrices, smat.join, type=type, prefix_l=prefix_l, prefix_r=prefix_r)
+smat.multi_join <- function(smat_list, type='full'){
+    join_func <- switch(type, 
+        inner = gintervals.intersect, 
+        full = gintervals.union, 
+        left = function(l, r) gintervals.intersect(gintervals.union(l,r), l), 
+        right = function(l, r) gintervals.intersect(gintervals.union(l,r), r))
+    message(sprintf('merging intervals, join type: %s', type))    
+    intervs <- purrr::reduce(smat_list, function(.x, .y) join_func(.x, .y$intervs), .init=smat_list[[1]]$intervs)
+    intervs <- intervs %>% mutate(id = 1:n())
+
+    message('merging matrices')
+    df <- purrr::map_dfr(smat_list, ~ smat.to_df(.x) %>% select(-id))
+    df <- df %>% inner_join(intervs, by=c('chrom', 'start', 'end')) %>% arrange(id)
+
+    message('creating smat from df')
+    smat <- smat.from_df(df, intervs=intervs)
+
+    smat$stats <- purrr::map_dfr(smat_list, 'stats')
+    smat$cell_metadata <- purrr::map_dfr(smat_list, 'cell_metadata')
+    return(smat)
 }
+
+
+# #' join multiple smat objects
+# #' 
+# #' @param ... smat objects to join
+# #' @inheritParams smat.join
+# #' 
+# #' @return joined smat objects
+# #' 
+# #' @export
+# smat.multi_join <- function(..., type='full', prefix_l='l_', prefix_r='r_'){
+#     matrices <- list(...)    
+#     purrr::reduce(matrices, smat.join, type=type, prefix_l=prefix_l, prefix_r=prefix_r)
+# }
 
 #' Save smat object to disk
 #'
@@ -122,6 +155,11 @@ smat.save <- function(smat, prefix){
     if (has_name(smat, 'cell_metadata')){
         message('saving cell metadata')
         fwrite(smat$cell_metadata, paste0(prefix, '_cell_metadata.tsv'), sep='\t')
+    }
+
+    if (has_name(smat, 'cpg_metadata')){
+        message('saving cpg metadata')
+        fwrite(smat$cpg_metadata, paste0(prefix, '_cpg_metadata.tsv'), sep='\t')
     }
 
     attributes <- list()
@@ -169,6 +207,11 @@ smat.load <- function(prefix){
     if (file.exists(cell_metadata_file)){
         conf$sparse_matrix$cell_metadata <- cell_metadata_file
     }
+
+    cpg_metadata_file <- paste0(prefix, '_cpg_metadata.tsv')
+    if (file.exists(cpg_metadata_file)){
+        conf$sparse_matrix$cpg_metadata <- cpg_metadata_file
+    }
     return(smat.from_conf(conf))
 }
 
@@ -193,7 +236,7 @@ smat.from_conf <- function(conf){
         m <- readMM(conf$sparse_matrix[[x]]) * 1
         colnames(m) <- mat_colnames
         return(m)
-          }, .parallel=TRUE)
+          }, .parallel=FALSE)
 
     names(smat) <- c('cov', 'meth', 'unmeth')
 
@@ -211,6 +254,9 @@ smat.from_conf <- function(conf){
     }
     if (has_name(conf$sparse_matrix, 'cell_metadata')){
         smat$cell_metadata <- fread(conf$sparse_matrix$cell_metadata) %>% tbl_df()
+    }
+    if (has_name(conf$sparse_matrix, 'cpg_metadata')){
+        smat$cpg_metadata <- fread(conf$sparse_matrix$cpg_metadata) %>% tbl_df()
     }
     return(smat)
 }
@@ -418,6 +464,19 @@ smat.filter_cpgs <- function(smat, cpg_intervs=NULL, cols=NULL, ids=NULL){
     new_smat$meth <- smat$meth[ids, cols]
     new_smat$unmeth <- smat$unmeth[ids, cols]
     new_smat$intervs <- new_mat_intervs %>% mutate(id = 1:n())
+
+    if (has_stats(smat)){
+        new_smat$stats <- new_smat$stats %>% filter(cell_id %in% smat.colnames(new_smat))
+    }
+
+    if (has_cell_metadata(smat)){
+        new_smat$cell_metadata <- new_smat$cell_metadata %>% filter(cell_id %in% smat.colnames(new_smat))
+    }
+
+    if (has_cpg_metadata(smat)){
+        new_smat$cpg_metadata <- new_smat$cpg_metadata %>% inner_join(new_smat$intervs, by=c('chrom', 'start', 'end')) %>% select(-id)
+    }
+
     return(new_smat)
 }
 
@@ -450,6 +509,18 @@ smat.filter_by_cov <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_
     new_smat$meth <- smat$meth[cg_filter, cell_filter]
     new_smat$unmeth <- smat$unmeth[cg_filter, cell_filter]
     new_smat$intervs <- smat$intervs[cg_filter, ] %>% mutate(id = 1:n())
+
+    if (has_stats(smat)){
+        new_smat$stats <- new_smat$stats %>% filter(cell_id %in% smat.colnames(new_smat))
+    }
+
+    if (has_cell_metadata(smat)){
+        new_smat$cell_metadata <- new_smat$cell_metadata %>% filter(cell_id %in% smat.colnames(new_smat))
+    }
+    
+    if (has_cpg_metadata(smat)){        
+        new_smat$cpg_metadata <- new_smat$cpg_metadata[cg_filter, ]
+    }
 
     return(new_smat)
 }
@@ -597,6 +668,31 @@ smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, 
     }
 
     return(res)
+}
+
+
+#' @export
+smat.calc_cpg_metadata <- function(smat, groot=NULL, promoters_upstream=500, promoters_downstream=50){
+    if (!is.null(groot)){
+        gsetroot(groot)
+    }    
+    gopt <- getOption('gmultitasking')
+    gdopt <- getOption('gmax.data.size')
+    on.exit(options(gmultitasking = gopt))
+    on.exit(options(gmax.data.size = gdopt))
+    options(gmax.data.size=1e9)
+    options(gmultitasking = FALSE)
+
+    promoters <- gpatterns.get_promoters(upstream=promoters_upstream, downstream=promoters_downstream)
+    gvtrack.create('prom_dist', promoters, func='distance')
+    cpg_metadata <- gextract(c(gpatterns:::.gpatterns.cg_cont_500_track, 'prom_dist'), intrevals=smat$intervs, iterator=smat$intervs, colnames=c('cg_cont', 'prom_dist')) %>% arrange(intervalID)
+    smat$cpg_metadata <- cpg_metadata %>% select(-intervalID) %>% mutate(promoter = prom_dist == 0) %>% as_tibble()
+    smat$cpg_metadata$cov <- rowSums(smat$cov)
+    smat$cpg_metadata$meth <- rowSums(smat$meth)
+    smat$cpg_metadata$unmeth <- rowSums(smat$unmeth)
+    smat$cpg_metadata <- smat$cpg_metadata %>% mutate(avg = meth / cov)
+
+    return(smat)    
 }
 
 has_stats <- function(smat){

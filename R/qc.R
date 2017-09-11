@@ -11,9 +11,14 @@
 #' 
 #' @export
 sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20, ofn=NULL, width=8, base_height=7, ...){
-	if (any(min_cpgs != 1, max_cpgs != Inf,  min_cells != 1, max_cells != Inf)){
+	if (any(min_cpgs != 1, max_cpgs != Inf,  min_cells != 1, max_cells != Inf)){		
 		smat <- smat.filter_by_cov(smat, min_cells=min_cells, max_cells=max_cells, max_cpgs=max_cpgs, min_cpgs=min_cpgs)
 	}
+
+	if (has_stats(smat) && has_name(smat$stats, 'cell_id')){
+		smat$stats <- smat$stats %>% mutate(lib = cell_id)
+	}
+
 	message('calculating CpG marginals')
 	cpg_mars <- sc5mc.plot_cpg_marginals(smat, type='percent')
 	cg_pairs_mars <- sc5mc.plot_cpg_marginals_bars(smat)
@@ -74,9 +79,10 @@ sc5mc.plot_conversion <- function(smat){
 }
 
 
-sc5mc.plot_cpg_marginals_bars <- function(smat){
+sc5mc.plot_cpg_marginals_bars <- function(smat, cell_nums=c(2,5,10,20,30,50,80)){
 	mars <- smat.cpg_marginals(smat)
-	tribble(~k, ~cpgs, 2, sum(mars$cells >= 2), 5, sum(mars$cells >= 5), 10, sum(mars$cells >= 10)) %>% ggplot(aes(x=factor(k), y=log10(cpgs))) + geom_col(width=0.7, fill='darkblue') + scale_y_continuous(labels=comify) + ylab('log10(# of CpGs covered by at least x cells)') + xlab('cells')
+	purrr::map_dfr(cell_nums, ~ tibble(k=.x, cpgs=sum(mars$cells >= .x))) %>%
+		ggplot(aes(x=factor(k), y=log10(cpgs))) + geom_col(width=0.7, fill='darkblue') + scale_y_continuous(labels=comify) + ylab('log10(# of CpGs covered by at least x cells)') + xlab('cells')
 }
 
 
@@ -155,3 +161,17 @@ sc5mc.plot_cg_pairs_coverage <- function(smat, min_cells=30){
 	return(p)
 }
 
+sc5mc.index_plots <- function(smat, ofn, width=7*2.5, height=5*2.3){
+	stats <- smat$stats
+    stats <- stats %>% mutate(row = factor(row, levels= rev(sort(unique(as.character(row))))), column = factor(column, levels=sort(unique(as.numeric(column)))))
+
+    p_frac_mapped <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=mapped_frac)) + geom_tile(size=0.5)+ scale_color_manual(values=rev(c('red', 'gray'))) + scale_fill_gradientn(colors=c('white', 'darkgreen')) + guides(color=F) 
+
+    p_tot_reads <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=log10(total_reads))) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'white', 'red')) + guides(color=F) 
+
+    p_uniq_frac <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=uniq_frac)) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'red')) + guides(color=F) 
+
+    p <- cowplot::plot_grid(p_tot_reads, p_uniq_frac, p_frac_mapped, align='hv', ncol=2) 
+
+    p + ggsave(ofn, width=width, height=height)
+}
