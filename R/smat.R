@@ -212,6 +212,12 @@ smat.load <- function(prefix){
     if (file.exists(cpg_metadata_file)){
         conf$sparse_matrix$cpg_metadata <- cpg_metadata_file
     }
+
+    tidy_cpgs_dir <- paste0(prefix, '_tcpgs')
+    if (dir.exists(tidy_cpgs_dir)){
+        conf$sparse_matrix$tidy_cpgs_dir <- tidy_cpgs_dir   
+    }
+
     return(smat.from_conf(conf))
 }
 
@@ -236,7 +242,7 @@ smat.from_conf <- function(conf){
         m <- readMM(conf$sparse_matrix[[x]]) * 1
         colnames(m) <- mat_colnames
         return(m)
-          }, .parallel=FALSE)
+          }, .parallel=TRUE)
 
     names(smat) <- c('cov', 'meth', 'unmeth')
 
@@ -257,6 +263,10 @@ smat.from_conf <- function(conf){
     }
     if (has_name(conf$sparse_matrix, 'cpg_metadata')){
         smat$cpg_metadata <- fread(conf$sparse_matrix$cpg_metadata) %>% tbl_df()
+    }
+
+    if (has_name(conf$sparse_matrix, 'tidy_cpgs_dir')){
+        smat$tidy_cpgs_dir <- conf$sparse_matrix$tidy_cpgs_dir
     }
     return(smat)
 }
@@ -283,6 +293,38 @@ smat.colnames <- function(smat){
     return(colnames(smat[['cov']]))
 }
 
+#' Get tidy cpgs of smat object
+#' 
+#' @param smat smat object
+#' @param unique if TRUE - get unique tidy_cpgs 
+#' 
+#' @return smat with additional tidy_cpgs field, that contain tidy_cpgs with additional 'cell_id' column with the cell id
+#' 
+#' @export
+smat.get_tidy_cpgs <- function(smat, unique=TRUE){
+    if (!has_name(smat, 'tidy_cpgs_dir')){
+        stop('tidy cpgs dir do not exist.')
+    }        
+        
+    d <- tibble(cell_id = smat.colnames(smat)) %>% 
+        mutate(dir = paste0(smat$tidy_cpgs_dir, '/', cell_id), exists = file.exists(dir))
+
+    if (!all(d$exists)){
+        warning(glue('some cells do not have tidy_cpgs: {paste(d$cell[!d$exists], collapse=", ")}'))
+    }
+
+    if (unique){
+        tcpgs_dir <- 'tidy_cpgs_uniq'
+    } else {
+        tcpgs_dir <- 'tidy_cpgs'
+    }
+
+    d <- d %>% filter(exists) %>% select(-exists)
+
+    tcpgs <- plyr::adply(d, 1, function(x) .gpatterns.get_tidy_cpgs_from_dir(glue('{x$dir}/{tcpgs_dir}'), uniq=unique), .parallel=TRUE) %>% select(-dir) %>% as_tibble()
+    smat$tidy_cpgs <- tcpgs
+    return(smat)
+}
 
 #' convert column names to ids
 cols2ids <- function(smat, cols=NULL){
