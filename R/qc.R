@@ -161,7 +161,18 @@ sc5mc.plot_cg_pairs_coverage <- function(smat, min_cells=30){
 	return(p)
 }
 
-sc5mc.index_plots <- function(smat, ofn, width=7*2.5, height=5*2.3){
+#' plot indexes statistics
+#' 
+#' @param smat smat object
+#' @param ofn figure filename (ggsave parameter)
+#' @param width figure width (ggsave parameter)
+#' @param height figure height (ggsave parameter)
+#' @param cells_per_umi plot cells per umi
+#' 
+#' @return plots of total reads, %mapping and %unique 
+#'
+#' @export
+sc5mc.index_plots <- function(smat, ofn, width=7*2.5, height=5*2.3, cells_per_umi=FALSE){
 	stats <- smat$stats
     stats <- stats %>% mutate(row = factor(row, levels= rev(sort(unique(as.character(row))))), column = factor(column, levels=sort(unique(as.numeric(column)))))
 
@@ -171,7 +182,44 @@ sc5mc.index_plots <- function(smat, ofn, width=7*2.5, height=5*2.3){
 
     p_uniq_frac <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=uniq_frac)) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'red')) + guides(color=F) 
 
-    p <- cowplot::plot_grid(p_tot_reads, p_uniq_frac, p_frac_mapped, align='hv', ncol=2) 
+    if (cells_per_umi){
+    	p_cells_per_umi <- sc5mc.plot_cells_per_umi(smat)	
+    	p <- cowplot::plot_grid(p_tot_reads, p_uniq_frac, p_frac_mapped, p_cells_per_umi, align='hv', ncol=2) 
+    } else {
+    	p <- cowplot::plot_grid(p_tot_reads, p_uniq_frac, p_frac_mapped, align='hv', ncol=2) 
+    }    
 
     p + ggsave(ofn, width=width, height=height)
+}
+
+#' Calculates cells per UMI
+#' 
+#' @param smat smat object
+#' 
+#' @return tibble with number of cells ('n_cells') and number of molecules ('n')
+#'
+#' @export
+sc5mc.cells_per_umi <- function(smat){
+	if (!has_name(smat, 'tidy_cpgs')){
+		message("Getting tidy cpgs")
+		smat <- smat.get_tidy_cpgs(smat, unique=FALSE)
+	}
+	message("Calculating reads per UMI")
+	tcpgs <- smat$tidy_cpgs  %>% distinct(read_id, .keep_all=TRUE) %>% select(cell_id, read_id, chrom, start, end, strand, umi1, umi2, insert_len)
+	cpu <- tcpgs %>% filter(end != '-') %>% group_by(chrom, start, end) %>% summarise(n = n(), n_cells=n_distinct(cell_id)) %>% ungroup()
+	cpu <- cpu %>% group_by(n_cells) %>% summarise(n = n()) %>% mutate(p = n / sum(n))
+	return(cpu)	 
+}
+
+#' Plots cells per UMI
+#' 
+#' @param smat smat object
+#' 
+#' @return plot of number of cells versus percent of moleculs (only for molecules that appeared in more than 1 cell)
+#'
+#' @export
+sc5mc.plot_cells_per_umi <- function(smat){
+	cpu <- sc5mc.cells_per_umi(smat)
+	p <- cpu %>% filter(n_cells > 1) %>% ggplot(aes(x=factor(n_cells), y=p)) + geom_col() + scale_y_continuous(labels=scales::percent) + xlab('# of cells') + ylab('% of molecules')
+	return(p)
 }
