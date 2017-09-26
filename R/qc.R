@@ -20,11 +20,11 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 	}
 
 	message('calculating CpG marginals')
-	cpg_mars <- sc5mc.plot_cpg_marginals(smat, type='percent')
+	cpg_mars <- sc5mc.plot_cpg_marginals(smat, type='vals') 
 	cg_pairs_mars <- sc5mc.plot_cpg_marginals_bars(smat)
 
 	message('calculating cell marginals')
-	cell_mars <- sc5mc.plot_cell_marginals(smat, type='percent')
+	cell_mars <- sc5mc.plot_cell_marginals(smat, type='vals')
 
 	message('calculating cell pairs')
 	cell_pairs_mars <- sc5mc.plot_cell_pairs_coverage(smat)
@@ -33,6 +33,7 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 	# cg_pairs_mars <- sc5mc.plot_cg_pairs_coverage(smat, min_cells=cpg_pairs_min_cells)
 
 	figs <- list(cpg_mars, cg_pairs_mars, cell_mars, cell_pairs_mars)
+	figs <- map(figs, ~ .x + theme_bw(base_size=8))
 	# figs <- list(cpg_mars, cell_mars, cell_pairs_mars, cg_pairs_mars)
 
 	if (has_stats(smat)){		
@@ -60,7 +61,7 @@ sc5mc.plot_reads_per_cpg <- function(smat){
 	}
 	stats <- smat$stats
 	if (!has_name(stats, 'cpg_num')){
-		cell_mars <- smat.cell_marginals(smat) %>% rename(lib=cell, cpg_num=cov)
+		cell_mars <- smat.cell_marginals(smat) %>% rename(lib=cell_id, cpg_num=cov)
 		stats <- stats %>% left_join(cell_mars, by='lib')
 	}
 	
@@ -90,7 +91,7 @@ sc5mc.plot_cpg_marginals_bars <- function(smat, cell_nums=c(2,5,10,20,30,50,80))
 #' 
 #' @param smat smat object
 #'
-#' @param type
+#' @param type 'percent' or 'vals'
 #'
 #' @export
 sc5mc.plot_cpg_marginals <- function(smat, type='percent'){
@@ -110,7 +111,7 @@ sc5mc.plot_cpg_marginals <- function(smat, type='percent'){
 #' 
 #' @param smat smat object
 #'
-#' @param type
+#' @param type 'percent' or 'vals'
 #'
 #' @export
 sc5mc.plot_cell_marginals <- function(smat, type='percent'){

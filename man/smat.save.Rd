@@ -4,12 +4,14 @@
 \alias{smat.save}
 \title{Save smat object to disk}
 \usage{
-smat.save(smat, prefix)
+smat.save(smat, prefix, create_dirs = FALSE)
 }
 \arguments{
 \item{smat}{smat object}
 
 \item{prefix}{path prefix of the location of the smat files}
+
+\item{create_dirs}{recursively create directories in \code{prefix}}
 }
 \value{
 inivisibly returns the smat object

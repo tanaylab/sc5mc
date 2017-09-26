@@ -16,7 +16,7 @@ smat.summarise_by_intervals(smat, intervals, return_smat = FALSE)
 \value{
 if \code{return_smat} - smat object with rows as the intervals.
 if not - data frame with the following fields:
-'chrom', 'start', 'end', 'cell', 'ncpgs', 'cov', 'meth', 'unmeth', 'avg'
+'chrom', 'start', 'end', 'cell_id', 'ncpgs', 'cov', 'meth', 'unmeth', 'avg'
 }
 \description{
 Group CpGs by intervals, and summarise per cell

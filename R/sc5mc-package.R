@@ -6,6 +6,8 @@
 #' @import Matrix
 #' @importClassesFrom Matrix Matrix dgCMatrix dgeMatrix
 #' @import gpatterns
+#' @import dplyr
+#' @import purrr
 #' @import tgstat
 #' @importFrom tibble has_name
 #' @importFrom glue glue

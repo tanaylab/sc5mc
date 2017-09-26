@@ -9,7 +9,7 @@ sc5mc.plot_cpg_marginals(smat, type = "percent")
 \arguments{
 \item{smat}{smat object}
 
-\item{type}{}
+\item{type}{'percent' or 'vals'}
 }
 \description{
 plot cpg marginals

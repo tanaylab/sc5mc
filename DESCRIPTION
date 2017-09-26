@@ -14,7 +14,7 @@ Imports:
 	Matrix,	
 	tibble,	
 	dplyr,		
-	purrr,
+	purrr,	
 	ggplot2,		
 	dendsort,	
 	broom,
@@ -23,6 +23,7 @@ Imports:
 	tglkmeans,
 	tgstat,
 	glue,
+	memoise,
 	yaml
 Remotes: bitbucket::tanaylab/tglkmeans@default
 License: GPL

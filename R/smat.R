@@ -99,7 +99,7 @@ smat.multi_join <- function(smat_list, type='full'){
         right = function(l, r) gintervals.intersect(gintervals.union(l,r), r))
     message(sprintf('merging intervals, join type: %s', type))    
     intervs <- purrr::reduce(smat_list, function(.x, .y) join_func(.x, .y$intervs), .init=smat_list[[1]]$intervs)
-    intervs <- intervs %>% mutate(id = 1:n())
+    intervs <- intervs %>% mutate(id = 1:n()) %>% as_tibble()
 
     message('merging matrices')
     df <- purrr::map_dfr(smat_list, ~ smat.to_df(.x) %>% select(-id))
@@ -113,34 +113,37 @@ smat.multi_join <- function(smat_list, type='full'){
     return(smat)
 }
 
-
-# #' join multiple smat objects
-# #' 
-# #' @param ... smat objects to join
-# #' @inheritParams smat.join
-# #' 
-# #' @return joined smat objects
-# #' 
-# #' @export
-# smat.multi_join <- function(..., type='full', prefix_l='l_', prefix_r='r_'){
-#     matrices <- list(...)    
-#     purrr::reduce(matrices, smat.join, type=type, prefix_l=prefix_l, prefix_r=prefix_r)
-# }
+#' join multiple smat objects from path
+#' 
+#' @param paths path prefixes of the location of the smats files
+#' @inheritParams smat.join
+#' 
+#' @return joined smat object
+#' 
+#' @export
+smat.multi_join_from_files <- function(paths, type='full'){
+    smat_list <- map(paths, smat.load)
+    smat.multi_join(smat_list, type=type)
+}
 
 #' Save smat object to disk
 #'
 #' @param smat smat object
 #'
 #' @param prefix path prefix of the location of the smat files
+#' @param create_dirs recursively create directories in \code{prefix}
 #'
 #' @return inivisibly returns the smat object
 #'
 #' @export
-smat.save <- function(smat, prefix){
+smat.save <- function(smat, prefix, create_dirs=FALSE){
+    if (create_dirs){
+        system(glue('mkdir -p {dirname(prefix)}'))
+    }
     res <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('saving %s', x))
         Matrix::writeMM(smat[[x]], paste0(prefix, '.', x))
-    }, .parallel=TRUE)
+    }, .parallel=FALSE)
 
     tibble(cell = smat.colnames(smat)) %>% fwrite(paste0(prefix, '_colnames.tsv'), sep='\t')
 
@@ -221,6 +224,25 @@ smat.load <- function(prefix){
     return(smat.from_conf(conf))
 }
 
+#' Fast load sparse matrix from MatrixMarket format using data.table::fread
+#'
+#' @param prefix path prefix of the location of the smat files
+#' 
+#' @return smat object
+#' 
+#' @inheritDotParams Matrix::sparseMatrix
+#'
+#' @export
+fast_readMM <- function(fn, ...){
+    mm <- fread(fn, skip=1, header=FALSE)
+    if (ncol(mm) == 2){
+        sm <- Matrix::sparseMatrix(i = mm[, 1], j=mm[, 2])    
+    } else {
+        sm <- Matrix::sparseMatrix(i = mm[, 1], j=mm[, 2], x = mm[, 3])
+    }
+    return(sm)    
+}
+
 #' Load smat object from disk
 #'
 #' @param conf list with 'sparse_matrices' field that holds a list with:
@@ -239,28 +261,35 @@ smat.from_conf <- function(conf){
 
     smat <- plyr::alply(c('cov', 'meth', 'unmeth'), 1, function(x) {
         message(sprintf('loading %s', x))
-        m <- readMM(conf$sparse_matrix[[x]]) * 1
+        m <- fast_readMM(conf$sparse_matrix[[x]]) * 1
+        # m <- Matrix::readMM(conf$sparse_matrix[[x]]) * 1
         colnames(m) <- mat_colnames
         return(m)
-          }, .parallel=TRUE)
+          }, .parallel=FALSE)
 
     names(smat) <- c('cov', 'meth', 'unmeth')
 
-    obs_cpgs <- fread(conf$sparse_matrix$intervs) %>% mutate(id = 1:n()) %>% tbl_df()
-    smat$intervs <- obs_cpgs
+    obs_cpgs <- fread(conf$sparse_matrix$intervs);
+    if (!has_name(obs_cpgs, 'id')){
+        obs_cpgs <- obs_cpgs %>% mutate(id = 1:n()) %>% as_tibble()
+    } 
+    smat$intervs <- as_tibble(obs_cpgs)
 
     if (has_name(conf$sparse_matrix, 'stats')){
         smat$stats <- fread(conf$sparse_matrix$stats) %>% tbl_df()
     }
+
     if (has_name(conf$sparse_matrix, 'attributes_file')){
         attributes <- yaml::yaml.load_file(conf$sparse_matrix$attributes_file)
         for (attr in names(attributes)){
             smat[[attr]] <- attributes[[attr]]
         }
     }
+
     if (has_name(conf$sparse_matrix, 'cell_metadata')){
         smat$cell_metadata <- fread(conf$sparse_matrix$cell_metadata) %>% tbl_df()
     }
+
     if (has_name(conf$sparse_matrix, 'cpg_metadata')){
         smat$cpg_metadata <- fread(conf$sparse_matrix$cpg_metadata) %>% tbl_df()
     }
@@ -268,21 +297,10 @@ smat.from_conf <- function(conf){
     if (has_name(conf$sparse_matrix, 'tidy_cpgs_dir')){
         smat$tidy_cpgs_dir <- conf$sparse_matrix$tidy_cpgs_dir
     }
+    class(smat) <- 'smat'
     return(smat)
 }
 
-#' Print smat object
-#' 
-#' @param smat smat object
-#' 
-#' @export
-smat.info <- function(smat){
-    ncells <- comify(ncol(smat[['cov']]))
-    ncpgs <- comify(nrow(smat[['cov']]))
-    attrs <- paste(names(smat), collapse=', ')
-    cat(qq('smat object\n@{ncpgs} CpGs X @{ncells} cells\n'))
-    cat(qq('attributes: @{attrs}\n'))
-}
 
 #' Get colnames of smat object
 #' 
@@ -379,13 +397,13 @@ smat.cpg_avg_marginals <- function(smat, cols=NULL){
 #' @param smat smat object
 #' @param cols column names of columns to use. If NULL all columns (cells) would be returned
 #'
-#' @return tibble with cells ('cell' field) and their marignal coverage ('cov' field)
+#' @return tibble with cells ('cell_id' field) and their marignal coverage ('cov' field)
 #' @export
 smat.cell_marginals <- function(smat, cols=NULL){
     ids <- cols2ids(smat, cols)
 	mars <- colSums(smat$cov[, ids])
 
-    return(tibble(cell=smat.colnames(smat)[ids], cov=mars))
+    return(tibble(cell_id=smat.colnames(smat)[ids], cov=mars))
 }
 
 #' Calculate the joint coverage of all pairs of cells
@@ -507,6 +525,10 @@ smat.filter_cpgs <- function(smat, cpg_intervs=NULL, cols=NULL, ids=NULL){
     new_smat$unmeth <- smat$unmeth[ids, cols]
     new_smat$intervs <- new_mat_intervs %>% mutate(id = 1:n())
 
+    rownames(new_smat$cov) <- new_smat$intervs$id
+    rownames(new_smat$meth) <- new_smat$intervs$id
+    rownames(new_smat$unmeth) <- new_smat$intervs$id
+
     if (has_stats(smat)){
         new_smat$stats <- new_smat$stats %>% filter(cell_id %in% smat.colnames(new_smat))
     }
@@ -538,6 +560,8 @@ smat.filter_by_cov <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_
     }
 	cell_filter <- which(between(colSums(smat$cov), min_cpgs, max_cpgs))
 	cg_filter <- which(between(rowSums(smat$cov), min_cells, max_cells))
+    # cell_filter <- between(colSums(smat$cov), min_cpgs, max_cpgs)
+    # cg_filter <- between(rowSums(smat$cov), min_cells, max_cells)
 
     if (length(cg_filter) == 0){
         stop('no cpgs match the criteria')
@@ -551,6 +575,13 @@ smat.filter_by_cov <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_
     new_smat$meth <- smat$meth[cg_filter, cell_filter]
     new_smat$unmeth <- smat$unmeth[cg_filter, cell_filter]
     new_smat$intervs <- smat$intervs[cg_filter, ] %>% mutate(id = 1:n())
+    rownames(new_smat$cov) <- new_smat$intervs$id
+    rownames(new_smat$meth) <- new_smat$intervs$id
+    rownames(new_smat$unmeth) <- new_smat$intervs$id
+    # rownames(new_smat$cov) <- NULL
+    # rownames(new_smat$meth) <- NULL
+    # rownames(new_smat$unmeth) <- NULL
+
 
     if (has_stats(smat)){
         new_smat$stats <- new_smat$stats %>% filter(cell_id %in% smat.colnames(new_smat))
@@ -602,7 +633,7 @@ smat.summarise_by_track <- function(smat, track, breaks, include.lowest=TRUE, gr
 #'
 #' @return  if \code{return_smat} - smat object with rows as the intervals.
 #' if not - data frame with the following fields:
-#' 'chrom', 'start', 'end', 'cell', 'ncpgs', 'cov', 'meth', 'unmeth', 'avg'
+#' 'chrom', 'start', 'end', 'cell_id', 'ncpgs', 'cov', 'meth', 'unmeth', 'avg'
 #'
 #' @export
 smat.summarise_by_intervals <- function(smat, intervals, return_smat=FALSE){
@@ -625,7 +656,7 @@ smat.summarise_by_intervals <- function(smat, intervals, return_smat=FALSE){
 
     res <- tcpgs %>%
         inner_join(neighbours %>% select(id, chrom=chrom1, start=start1, end=end1), by='id') %>%
-        group_by(chrom, start, end, cell) %>%
+        group_by(chrom, start, end, cell_id) %>%
         summarise(ncpgs=n(), cov = sum(cov), meth = sum(meth), unmeth = sum(unmeth), avg = meth / cov) %>%
         ungroup
 
@@ -645,7 +676,7 @@ smat.summarise_by_intervals <- function(smat, intervals, return_smat=FALSE){
 #'
 #'
 #' @return data frame with the following fields:
-#' 'group_name', 'cell', 'ncpgs', 'meth', 'unmeth', 'avg'
+#' 'group_name', 'cell_id', 'ncpgs', 'meth', 'unmeth', 'avg'
 #' @export
 smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
     summarise_per_group <- function(x){
@@ -661,7 +692,7 @@ smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
             avg <- m / cov
         }
 
-        tibble(cell=names(cov), ncpgs = cov, meth=m, unmeth=um, avg=avg)
+        tibble(cell_id=names(cov), ncpgs = cov, meth=m, unmeth=um, avg=avg)
     }
 
     res <- smat$intervs %>%
@@ -669,25 +700,21 @@ smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
         plyr::ddply(plyr::.(group), summarise_per_group, .parallel=parallel) %>%
         tbl_df %>%
         filter(ncpgs > 0) %>%
-        purrr::set_names(c(group_name, 'cell', 'ncpgs', 'meth', 'unmeth', 'avg'))
+        purrr::set_names(c(group_name, 'cell_id', 'ncpgs', 'meth', 'unmeth', 'avg'))
 
     return(res)
 }
 
 #' Summarises CpGs by groups pf cells
 #'
-#' @param smat sc5mc smat object
-#' @param groups_df data frame with column 'cell' with cell names, and additional columns with groups. if NULL CpGs from all cells would be summarised.
-#' @param groups columns of group_df to group by.
-#' @param min_cells mininmal number of cells per CpG
-#' @param max_cells maximal number of cells cells per CpG
+#' @param smat smat object
 #'
 #' @return tidy data frame with summariy statistics for each group and CpG
 #'
 #' @export
 smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, max_cells=Inf){
     summarise_per_group <- function(x){
-        cells <- match(x$cell, smat.colnames(smat))
+        cells <- match(x$cell_id, smat.colnames(smat))
         cells <- cells[!is.na(cells)]
         cgs <- which(between(rowSums(smat[['cov']][, cells]), min_cells, max_cells))
 
@@ -698,11 +725,11 @@ smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, 
 
     rm_group <- FALSE
     if (is.null(groups_df) || is.null(groups)){
-        groups_df <- tibble(cell = smat.colnames(smat)) %>% mutate(group = 'group')
+        groups_df <- tibble(cell_id = smat.colnames(smat)) %>% mutate(group = 'group')
         groups <- 'group'
         rm_group <- TRUE
     }
-    res <- groups_df %>% select(one_of('cell', groups)) %>% group_by_(groups) %>% do(summarise_per_group(.)) %>% ungroup %>% mutate(unmeth = n - m, avg = m / n)
+    res <- groups_df %>% select(one_of('cell_id', groups)) %>% group_by_(groups) %>% do(summarise_per_group(.)) %>% ungroup %>% mutate(unmeth = n - m, avg = m / n)
     res <- res %>% left_join(smat$intervs, by='id') %>% select(chrom, start, end, id, one_of(groups), cov=n, meth = m, unmeth, avg)
 
     if (rm_group){
@@ -713,8 +740,27 @@ smat.summarise_cpgs <- function(smat, groups_df=NULL, groups=NULL, min_cells=1, 
 }
 
 
+# smat.summarise_cells <- function(smat){
+#     browser()
+# }
+
+# .smat.summarise <- function(smat){
+#     summarise_per_group <- function(cpgs, cells){
+#         if (nrow(x) == 1){
+#             m <- smat$meth[cpgs, cells]
+#             um <- smat$unmeth[cpgs, cells]
+#             cov <- smat$cov[cpgs, cells]
+#             avg <- m / cov
+#         } else {
+#             m <- colSums(smat$meth[cpgs, cells])
+#             um <- colSums(smat$unmeth[cpgs, cells])
+#             cov <- colSums(smat$cov[cpgs, cells])
+#             avg <- m / cov
+#     }
+# }
+
 #' @export
-smat.calc_cpg_metadata <- function(smat, groot=NULL, promoters_upstream=500, promoters_downstream=50){
+smat.calc_cpg_metadata <- function(smat, groot=NULL, promoters_upstream=500, promoters_downstream=50, tracks=NULL, names=NULL){
     if (!is.null(groot)){
         gsetroot(groot)
     }    
@@ -725,9 +771,21 @@ smat.calc_cpg_metadata <- function(smat, groot=NULL, promoters_upstream=500, pro
     options(gmax.data.size=1e9)
     options(gmultitasking = FALSE)
 
+    message('extracting promoters...')
     promoters <- gpatterns.get_promoters(upstream=promoters_upstream, downstream=promoters_downstream)
     gvtrack.create('prom_dist', promoters, func='distance')
-    cpg_metadata <- gextract(c(gpatterns:::.gpatterns.cg_cont_500_track, 'prom_dist'), intrevals=smat$intervs, iterator=smat$intervs, colnames=c('cg_cont', 'prom_dist')) %>% arrange(intervalID)
+    message('extracting cpg content...')
+    if (!is.null(tracks)){
+        if(is.null(names)) {
+		names = tracks
+	}
+        tracks <- c(gpatterns:::.gpatterns.cg_cont_500_track, 'prom_dist', tracks)        
+        names <- c('cg_cont', 'prom_dist', names)
+    } else {
+        tracks <- c(gpatterns:::.gpatterns.cg_cont_500_track, 'prom_dist')
+        names <- c('cg_cont', 'prom_dist')
+    }
+    cpg_metadata <- gextract(tracks, intrevals=smat$intervs, iterator=smat$intervs, colnames=names) %>% arrange(intervalID)
     smat$cpg_metadata <- cpg_metadata %>% select(-intervalID) %>% mutate(promoter = prom_dist == 0) %>% as_tibble()
     smat$cpg_metadata$cov <- rowSums(smat$cov)
     smat$cpg_metadata$meth <- rowSums(smat$meth)
@@ -737,15 +795,175 @@ smat.calc_cpg_metadata <- function(smat, groot=NULL, promoters_upstream=500, pro
     return(smat)    
 }
 
+
+# smat.calc_cpg_metadata <- memoise::memoise(.calc_cpg_metadata)
+
+smat.calc_cell_metadata <- function(smat){
+    smat$cell_metadata <- tibble(cell_id = colnames(smat))
+    return(smat)
+}
+
+
+# dplyr like functions
+
+# group_by
+#' @export
+group_by_cpgs <- function(smat, ...){
+    if (!has_cpg_metadata(smat)){
+        smat <- smat.calc_cpg_metadata(smat)
+    }
+    smat$cpg_metadata <- smat$cpg_metadata %>% group_by(...)
+    return(smat)
+}
+#' @export
+group_by_cells <- function(smat, ...){
+    if (!has_cell_metadata(smat)){
+        smat <- smat.calc_cell_metadata(smat)
+    }
+    smat$cell_metadata <- smat$cell_metadata %>% group_by(...)
+    return(smat)
+}
+
+# ungroup
+#' @export
+ungroup_cpgs <- function(smat, ...){
+    if (has_cpg_metadata(smat)){
+        smat$cpg_metadata <- smat$cpg_metadata %>% ungroup()
+    }
+    return(smat)
+}
+
+#' @export
+ungroup_cells <- function(smat, ...){
+    if (has_cell_metadata(smat)){
+        smat$cell_metadata <- smat$cell_metadata %>% ungroup()
+    }
+    return(smat)
+}
+
+# get groups
+#' @export
+cpg_groups <- function(smat){
+    if (has_cpg_metadata(smat)){
+        return(group_vars(smat$cpg_metadata))
+    }
+    return(NULL)    
+}
+
+#' @export
+cell_groups <- function(smat){
+    if (has_cell_metadata(smat)){
+        return(group_vars(smat$cell_metadata))
+    }
+    return(NULL)    
+}
+
+# mutate
+#' @export
+mutate_cpgs <- function(smat, ...){
+    if (!has_cpg_metadata(smat)){
+        smat <- smat.calc_cpg_metadata(smat)
+    }
+    smat$cpg_metadata <- smat$cpg_metadata %>% mutate(...)
+    return(smat)
+}
+
+#' @export
+mutate_cells <- function(smat, ...){
+    if (!has_cell_metadata(smat)){
+        smat <- smat.calc_cell_metadata(smat)
+    }
+    smat$cell_metadata <- smat$cell_metadata %>% mutate(...)
+    return(smat)
+}
+
+# filter
+#' @export
+filter_cpgs <- function(smat, ...){
+    if (!has_cpg_metadata(smat)){
+        smat <- smat.calc_cpg_metadata(smat)
+    }
+    smat$cpg_metadata <- smat$cpg_metadata %>% filter(...)
+    smat <- smat.filter_cpgs(smat, cpg_intervs=select(smat$cpg_metadata, chrom, start, end))    
+    return(smat)
+}
+
+#' @export
+filter_cells <- function(smat, ...){
+    if (!has_cell_metadata(smat)){
+        smat <- smat.calc_cell_metadata(smat)
+    }
+    smat$cell_metadata <- smat$cell_metadata %>% filter(...)
+    smat <- smat.select(smat, cols=smat$cell_metadata$cell_id)
+    return(smat)
+}
+
+# summarise
+# smat.summarise <- function()
+
+#' @export
+get_cells <- function(smat){
+    smat$cell_metadata
+}
+
+#' @export
+get_cpgs <- function(smat){
+    smat$cpg_metadata
+}
+
+
+# Boolean functions
 has_stats <- function(smat){
-    has_name(smat, 'stats')    
+    has_name(smat, 'stats')  && !is.null(smat$stats)    
 }
 
 has_cell_metadata <- function(smat){
-    has_name(smat, 'cell_metadata')    
+    has_name(smat, 'cell_metadata')  && !is.null(smat$cell_metadata)  
 }
 
+
 has_cpg_metadata <- function(smat){
-    has_name(smat, 'cpg_metadata')    
+    has_name(smat, 'cpg_metadata')  && !is.null(smat$cpg_metadata)   
 }
+
+
+#' Print smat object
+#' 
+#' @param smat smat object
+#' 
+#' @export
+smat.info <- function(smat){
+    ncells <- comify(ncol(smat[['cov']]))
+    ncpgs <- comify(nrow(smat[['cov']]))    
+    message(glue('smat object\n{ncpgs} CpGs X {ncells} cells'))    
+    message(glue('--- name: {smat$name}'))    
+    message(glue('--- description: "{smat$description}"'))    
+
+    if (has_cell_metadata(smat)) {
+        cell_metadata_fields <- paste(colnames(smat$cell_metadata), collapse = ', ')        
+        message(glue('--- cell_metadata with the following fields: {cell_metadata_fields}'))       
+        cell_groups <- group_vars(smat$cell_metadata)
+        if (length(cell_groups) > 0){
+            message(glue('------- cell groups: {paste(cell_groups, collapse = ", ")}')) 
+        }
+    }
+
+    if (has_cpg_metadata(smat)) {
+        cpg_metadata_fields <- paste(colnames(smat$cpg_metadata), collapse = ', ')        
+        message(glue('--- cpg_metadata with the following fields: {cpg_metadata_fields}'))           
+        cpg_groups <- group_vars(smat$cpg_metadata)
+        if (length(cpg_groups) > 0){
+            message(glue('------- cpg groups: {paste(cpg_groups, collapse = ", ")}')) 
+        }
+    }
+    attrs <- paste(names(smat)[!(names(smat) %in% c('cell_metadata', 'cpg_metadata'))], collapse=', ')    
+    message(glue('--- other attributes: {attrs}'))   
+}
+
+# Generics
+print.smat <- function(x) smat.info(x)
+colnames <-  function(x, ...) UseMethod("colnames")
+colnames.default <- base::colnames
+colnames.smat <- function(x) smat.colnames(x)
+select.smat <- function(x, ...) smat.select(x, ...)
 
