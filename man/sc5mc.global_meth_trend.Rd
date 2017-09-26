@@ -4,8 +4,8 @@
 \alias{sc5mc.global_meth_trend}
 \title{Global methylation trend per cell}
 \usage{
-sc5mc.global_meth_trend(smat, breaks = seq(0, 0.1, by = 0.002),
-  include.lowest = TRUE, min_cpgs = 500, parallel = TRUE)
+sc5mc.global_meth_trend(smat, breaks = seq(0, 0.3, by = 0.002),
+  include.lowest = TRUE, min_cpgs = 1, parallel = TRUE)
 }
 \arguments{
 \item{smat}{smat object}
@@ -21,9 +21,9 @@ breaks is included}
 }
 \value{
 data frame with the following fields:
-cg_cont` with the CpG content bin,
+`cg_cont` with the CpG content bin,
 `breaks_numeric` with the middle point between each bin
-`cell` cell name
+`cell_id` cell name
 `ncpgs` number of CpGs in the bin
 `meth` number of methylated CpGs
 `unmeth` number of unmethylated CpGs

@@ -13,12 +13,13 @@
 #' @param description description of the object
 #' @param keep_tidy_cpgs keep tidy cpgs attached to the smat object
 #' @param load_existing load existing tidy cpgs
+#' @param filter_dups relevenat only when load_existing is TRUE: filter duplicates
 #' @param ... additional parameters to \code{gpatterns::gpatterns.import_from_bam}
 #' 
 #' @return smat object (inivisibly if prefix is not NULL)
 #'
 #' @export
-smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', keep_tidy_cpgs=TRUE, load_existing=FALSE, io_saturation=TRUE, cell_metadata=NULL, ...){
+smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', keep_tidy_cpgs=TRUE, load_existing=FALSE, filter_dups=FALSE, io_saturation=FALSE, threads=10, cell_metadata=NULL, keep_tidy_calls=TRUE, ...){
 
     bam2calls <- function(bams, lib, workdir=workdir, keep_tidy_cpgs=keep_tidy_cpgs, load_existing=load_existing, ...){                        
         if (keep_tidy_cpgs){
@@ -29,9 +30,13 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         }
         system(sprintf('mkdir -p %s', track_workdir))
         
-        if (!load_existing){
+        if (!load_existing){            
             gpatterns::gpatterns.import_from_bam(bams, workdir=track_workdir, steps=c('bam2tidy_cpgs', 'filter_dups'), groot=groot, ...)    
-        }        
+        } else {
+            if (filter_dups){
+                gpatterns::gpatterns.import_from_bam('', workdir=track_workdir, steps=c('filter_dups'), groot=groot, ...)    
+            }
+        }
 
         tcpgs_dir <- paste0(track_workdir, '/tidy_cpgs')
         uniq_tcpgs_dir <- paste0(track_workdir, '/tidy_cpgs_uniq')
@@ -56,9 +61,9 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         bams <- paste(qqv("'@{x$bam}'"), collapse=', ')
         qq("bam2calls(c(@{bams}), lib = '@{x$lib[1]}', workdir='@{workdir}', keep_tidy_cpgs=@{keep_tidy_cpgs}, load_existing=@{load_existing}, ...)")
     })
-        
+    
     if (use_sge){        
-        res <- gcluster.run2(command_list=cmds, io_saturation=io_saturation, packages='gpatterns')
+        res <- gcluster.run2(command_list=cmds, io_saturation=io_saturation, threads=threads, packages='gpatterns')
         tidy_calls <- res %>% map('retv') %>% map('calls') %>% compact() %>% map_df(~ .x)
         stats <- res %>% map('retv') %>% map('stats') %>% compact() %>% map_df(~ .x)
     } else {
@@ -67,6 +72,9 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
     }
    
     tidy_calls <- tidy_calls %>% mutate(unmeth = if_else(meth == 0, 1, 0), cov=1)
+    if (keep_tidy_calls){
+        fwrite(tidy_calls, paste0(prefix, '_tidy_calls.csv'))    
+    }    
     
     smat <- .tidy_calls2smat(tidy_calls)
     smat$stats <- stats
@@ -74,7 +82,7 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
     smat$description <- description
 
     if (!is.null(smat$stats)){
-        smat$stats <- smat.cell_marginals(smat) %>% rename(lib = cell, cg_num = cov) %>% inner_join(smat$stats)    
+        smat$stats <- smat.cell_marginals(smat) %>% rename(lib = cell_id, cg_num = cov) %>% inner_join(smat$stats)    
     }
     
 
@@ -94,6 +102,12 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
     }
     return(smat)
 }
+
+# #' @export
+# smat.from_tidy_calls <- function(tidy_calls, ){
+#     smat.from_bams(data.frame(lib = cells, bam=''), prefix=prefix, keep_tidy_cpgs=TRUE, load_existing=TRUE, ...)
+# }
+
 
 #' Create smat object from misha tracks
 #'
@@ -154,14 +168,13 @@ smat.from_df <- function(df, name='', description='', intervs=NULL){
     # .tidy_calls2smat(df %>% unite('coord', chrom, start, end), column_name='cell')
     smat <- .tidy_calls2smat(df, column_name='cell', intervs=intervs)
     smat$name <- name
-    smat$description <- description
+    smat$description <- description    
     return(smat)
 }
 
 
 # Utils
-
-.tidy_calls2smat <- function(tidy_calls, column_name='track', intervs=NULL){     
+.tidy_calls2smat <- function(tidy_calls, column_name='track', intervs=NULL){         
     message('creating intervs')  
     if (!is.null(intervs)){
         intervs <- intervs %>% arrange(chrom, start, end) %>% mutate(id = 1:n())
@@ -173,7 +186,7 @@ smat.from_df <- function(df, name='', description='', intervs=NULL){
     if (has_name(tidy_calls, 'id')){
         tidy_calls <- tidy_calls %>% select(-id)
     }
-    tidy_calls <- tidy_calls %>% inner_join(intervs, by=c('chrom', 'start', 'end'))
+    tidy_calls <- tidy_calls %>% inner_join(intervs, by=c('chrom', 'start', 'end')) %>% arrange(id)
 
     parallel <- TRUE
     if (nrow(tidy_calls) * ncol(tidy_calls) > (2^31 - 1)){
@@ -182,15 +195,18 @@ smat.from_df <- function(df, name='', description='', intervs=NULL){
     smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))
         tidy2smat(tidy_calls, 'id', column_name, x)
-    }, .parallel=parallel)
+    }, .parallel=FALSE)
 
     names(smat) <- c('meth', 'unmeth', 'cov')
       
     smat$intervs <- intervs
 
     for (.x in c('meth', 'unmeth', 'cov')){        
-        rownames(smat[[.x]]) <- smat$intervs$id
+        stopifnot(all(rownames(smat[[.x]]) == smat$intervs$id))
+        # rownames(smat[[.x]]) <- smat$intervs$id
     }
+
+    class(smat) <- 'smat'
 
     return(smat)
 }
@@ -217,6 +233,37 @@ tcpgs2calls <- function(tcpgs, track){
 }
 
 
-# smat.add_cg_num <- function(smat){
-#     smat.cell_marginals(smat) 
+# smat.merge_by_reads <- function(smat_list, do_merge=TRUE, filter_dups=TRUE, prefix=NULL, workdir=tempdir(), groot=GROOT, ...){
+#     if (!is.null(prefix)){
+#          workdir <- paste0(prefix, '_tcpgs/')
+#          system(glue('mkdir -p {workdir}'))
+#     }
+#     metadata <- map(smat_list, get_smat_tcpgs_files)
+#     metadata <- map_dfr(metadata, ~ .x %>% tidyr::unnest(files) ) %>% mutate(fn = basename(files)) %>% group_by(cell_id, fn) %>% nest(files) %>% mutate(out_dir = glue('{workdir}/{cell_id}/tidy_cpgs')) %>% mutate(id = 1:n())
+    
+#     merge_tcpgs <- function(i){
+#         # print(scales::percent(i / nrow(metadata)))
+#         .x <- metadata[i, ]
+#         system(glue('mkdir -p {.x$out_dir}'))
+#         files <- .x$data[[1]][[1]]
+#         system(glue('cp {files[1]} {.x$out_dir}/{.x$fn}'))
+#         walk(files[-1], function(f) system(glue('gzip -d -c {f} | tail -n +2 | gzip -c >> {.x$out_dir}/{.x$fn}')))
+#     }
+
+#     if (do_merge){
+#         message('merging tidy cpgs')    
+#         res <- dlply(metadata, .(cell_id), function(x) {print(x$cell_id[1]); walk(x$id, merge_tcpgs)}, .parallel=TRUE)    
+#     }
+#     # a <- alply(1:nrow(metadata), 1, merge_tcpgs, .parallel=TRUE)
+#     metadata <- metadata %>% distinct(cell_id) %>% rename(lib=cell_id) %>% mutate(bam = '')
+
+#     #TODO: merge cell metadata and stats!
+#     smat <- smat.from_bams(metadata, groot, prefix=prefix, workdir=workdir, load_existing=TRUE, filter_dups=TRUE, ...)
+#     browser()
+# }
+
+
+# get_smat_tcpgs_files <- function(smat){
+#     tibble(cell_id = list.files(smat$tidy_cpgs_dir)) %>% 
+#         purrrlyr::by_row(~ list.files(glue('{smat$tidy_cpgs_dir}/{.x$cell_id}/tidy_cpgs'), pattern='.*\\.tcpgs.gz$', full.names=TRUE), .to='files')
 # }

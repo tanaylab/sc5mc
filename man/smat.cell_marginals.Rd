@@ -12,7 +12,7 @@ smat.cell_marginals(smat, cols = NULL)
 \item{cols}{column names of columns to use. If NULL all columns (cells) would be returned}
 }
 \value{
-tibble with cells ('cell' field) and their marignal coverage ('cov' field)
+tibble with cells ('cell_id' field) and their marignal coverage ('cov' field)
 }
 \description{
 calculate marginal coverage of cells

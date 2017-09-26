@@ -9,9 +9,9 @@
 #' @param parallel compute parallely per group (using doMC package)
 #'
 #' @return data frame with the following fields:
-#' cg_cont` with the CpG content bin,
+#' `cg_cont` with the CpG content bin,
 #' `breaks_numeric` with the middle point between each bin
-#' `cell` cell name
+#' `cell_id` cell name
 #' `ncpgs` number of CpGs in the bin
 #' `meth` number of methylated CpGs
 #' `unmeth` number of unmethylated CpGs
@@ -20,9 +20,9 @@
 #'
 #' @export
 sc5mc.global_meth_trend <- function(smat,
-                                    breaks = seq(0, 0.1, by = 0.002),
+                                    breaks = seq(0, 0.3, by = 0.002),
                                     include.lowest = TRUE,
-                                    min_cpgs = 500,
+                                    min_cpgs = 1,
                                     parallel = TRUE) {
 
     gmeth <- smat.summarise_by_track(
@@ -37,7 +37,7 @@ sc5mc.global_meth_trend <- function(smat,
     gmeth <- gmeth %>%
     	mutate(cg_cont = as.character(cg_cont)) %>%
     	left_join(breaks_numeric_df, by='cg_cont') %>%
-    	select(cg_cont, breaks_numeric, cell, ncpgs, meth, unmeth, avg)
+    	select(cg_cont, breaks_numeric, cell_id, ncpgs, meth, unmeth, avg)
 
     gmeth <- gmeth %>% filter(ncpgs >= min_cpgs)
     return(gmeth)

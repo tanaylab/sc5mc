@@ -17,7 +17,7 @@ smat.summarise(smat, groups, group_name = "group", parallel = TRUE)
 }
 \value{
 data frame with the following fields:
-'group_name', 'cell', 'ncpgs', 'meth', 'unmeth', 'avg'
+'group_name', 'cell_id', 'ncpgs', 'meth', 'unmeth', 'avg'
 }
 \description{
 Summarise groups of CpGs per cell

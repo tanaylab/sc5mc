@@ -8,15 +8,7 @@ smat.summarise_cpgs(smat, groups_df = NULL, groups = NULL, min_cells = 1,
   max_cells = Inf)
 }
 \arguments{
-\item{smat}{sc5mc smat object}
-
-\item{groups_df}{data frame with column 'cell' with cell names, and additional columns with groups. if NULL CpGs from all cells would be summarised.}
-
-\item{groups}{columns of group_df to group by.}
-
-\item{min_cells}{mininmal number of cells per CpG}
-
-\item{max_cells}{maximal number of cells cells per CpG}
+\item{smat}{smat object}
 }
 \value{
 tidy data frame with summariy statistics for each group and CpG

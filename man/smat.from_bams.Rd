@@ -6,7 +6,8 @@
 \usage{
 smat.from_bams(metadata, groot, prefix = NULL, workdir = tempdir(),
   use_sge = TRUE, name = "", description = "", keep_tidy_cpgs = TRUE,
-  load_existing = FALSE, io_saturation = TRUE, cell_metadata = NULL, ...)
+  load_existing = FALSE, filter_dups = FALSE, io_saturation = FALSE,
+  threads = 10, cell_metadata = NULL, keep_tidy_calls = TRUE, ...)
 }
 \arguments{
 \item{metadata}{data frame with 'lib' column with the library name (ususally cell id)
@@ -29,6 +30,8 @@ would not be written to disk}
 \item{keep_tidy_cpgs}{keep tidy cpgs attached to the smat object}
 
 \item{load_existing}{load existing tidy cpgs}
+
+\item{filter_dups}{relevenat only when load_existing is TRUE: filter duplicates}
 
 \item{...}{additional parameters to \code{gpatterns::gpatterns.import_from_bam}}
 }
