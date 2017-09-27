@@ -340,7 +340,12 @@ smat.get_tidy_cpgs <- function(smat, unique=TRUE){
     d <- d %>% filter(exists) %>% select(-exists)
 
     tcpgs <- plyr::adply(d, 1, function(x) .gpatterns.get_tidy_cpgs_from_dir(glue('{x$dir}/{tcpgs_dir}'), uniq=unique), .parallel=TRUE) %>% select(-dir) %>% as_tibble()
-    smat$tidy_cpgs <- tcpgs
+
+    if (!unique){
+        smat$tidy_cpgs_all <- tcpgs
+    } else {
+        smat$tidy_cpgs <- tcpgs    
+    }    
     return(smat)
 }
 
@@ -505,7 +510,7 @@ smat.filter_cpgs <- function(smat, cpg_intervs=NULL, cols=NULL, ids=NULL){
         new_mat_intervs <- smat$intervs %>% filter(id %in% ids)
     } else if (!is.null(cpg_intervs)) {
         new_mat_intervs <- smat$intervs %>% 
-            inner_join(cpg_intervs, by=c('chrom', 'start', 'end')) %>% 
+            inner_join(select(cpg_intervs, chrom, start, end), by=c('chrom', 'start', 'end')) %>% 
             arrange(id)
         ids <- new_mat_intervs$id
     } else {
