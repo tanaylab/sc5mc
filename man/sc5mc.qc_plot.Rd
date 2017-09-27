@@ -5,8 +5,8 @@
 \title{Plot QC statistics of smat object}
 \usage{
 sc5mc.qc_plot(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
-  max_cells = Inf, cpg_pairs_min_cells = 20, ofn = NULL, width = 8,
-  base_height = 7, ...)
+  max_cells = Inf, cpg_pairs_min_cells = 20, regions = NULL,
+  capture_stats = FALSE, ofn = NULL, width = NULL, base_height = 9, ...)
 }
 \arguments{
 \item{smat}{smat object}
@@ -20,6 +20,10 @@ sc5mc.qc_plot(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
 \item{max_cells}{maximal number of cells}
 
 \item{cpg_pairs_min_cells}{minimal number of CpGs to consider in cg_pairs plot}
+
+\item{regions}{intervals set of capture regions. (default: NULL)}
+
+\item{capture_stats}{show only statistics from capture regions}
 
 \item{ofn}{output file}
 
