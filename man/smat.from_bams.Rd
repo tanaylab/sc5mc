@@ -7,7 +7,8 @@
 smat.from_bams(metadata, groot, prefix = NULL, workdir = tempdir(),
   use_sge = TRUE, name = "", description = "", keep_tidy_cpgs = TRUE,
   load_existing = FALSE, filter_dups = FALSE, io_saturation = FALSE,
-  threads = 10, cell_metadata = NULL, keep_tidy_calls = TRUE, ...)
+  threads = 10, cell_metadata = NULL, keep_tidy_calls = TRUE,
+  single_cell = TRUE, ...)
 }
 \arguments{
 \item{metadata}{data frame with 'lib' column with the library name (ususally cell id)
@@ -32,6 +33,8 @@ would not be written to disk}
 \item{load_existing}{load existing tidy cpgs}
 
 \item{filter_dups}{relevenat only when load_existing is TRUE: filter duplicates}
+
+\item{single_cell}{take only a single methylation call per CpG}
 
 \item{...}{additional parameters to \code{gpatterns::gpatterns.import_from_bam}}
 }

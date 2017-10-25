@@ -15,4 +15,6 @@
 #' @importFrom logging loginfo
 #' @importFrom logging logwarn
 #' @importFrom logging logerror
+#' @useDynLib sc5mc
+#' @importFrom Rcpp sourceCpp
 NULL

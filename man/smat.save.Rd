@@ -4,7 +4,7 @@
 \alias{smat.save}
 \title{Save smat object to disk}
 \usage{
-smat.save(smat, prefix, create_dirs = FALSE)
+smat.save(smat, prefix, create_dirs = TRUE)
 }
 \arguments{
 \item{smat}{smat object}

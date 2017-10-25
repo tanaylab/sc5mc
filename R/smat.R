@@ -136,7 +136,7 @@ smat.multi_join_from_files <- function(paths, type='full'){
 #' @return inivisibly returns the smat object
 #'
 #' @export
-smat.save <- function(smat, prefix, create_dirs=FALSE){
+smat.save <- function(smat, prefix, create_dirs=TRUE){
     if (create_dirs){
         system(glue('mkdir -p {dirname(prefix)}'))
     }
@@ -792,10 +792,18 @@ smat.calc_cpg_metadata <- function(smat, groot=NULL, promoters_upstream=500, pro
     }
     cpg_metadata <- gextract(tracks, intrevals=smat$intervs, iterator=smat$intervs, colnames=names) %>% arrange(intervalID)
     smat$cpg_metadata <- cpg_metadata %>% select(-intervalID) %>% mutate(promoter = prom_dist == 0) %>% as_tibble()
-    smat$cpg_metadata$cov <- rowSums(smat$cov)
-    smat$cpg_metadata$meth <- rowSums(smat$meth)
-    smat$cpg_metadata$unmeth <- rowSums(smat$unmeth)
-    smat$cpg_metadata <- smat$cpg_metadata %>% mutate(avg = meth / cov)
+    if (has_name(smat, 'cov')){
+        smat$cpg_metadata$cov <- rowSums(smat$cov)    
+    }
+    if (has_name(smat, 'meth')){
+        smat$cpg_metadata$meth <- rowSums(smat$meth)
+    }
+    if (has_name(smat, 'unmeth')){
+        smat$cpg_metadata$unmeth <- rowSums(smat$unmeth)
+    }
+    if (has_name(smat, 'cov') && has_name(smat, 'meth')){
+        smat$cpg_metadata <- smat$cpg_metadata %>% mutate(avg = meth / cov)
+    }
 
     return(smat)    
 }
@@ -808,113 +816,121 @@ smat.calc_cell_metadata <- function(smat){
     return(smat)
 }
 
+#' @export
+smat.add_intervals <- function(smat, intervals){
+    # intervals <- gintervals.union(smat$intervs, intervals) %>% arrange(chrom, start, end) %>% as_tibble()
+    smat_df <- smat.to_df(smat) %>% inner_join(intervals, by=c('chrom', 'start', 'end'))
+    smat_new <- smat.from_df(smat_df %>% bind_rows(intervals %>% mutate(cell = 'dummy', meth = NA, unmeth=NA, cov=NA)))
+    smat_new <- smat.filter(smat_new, cols=colnames(smat_new)[colnames(smat_new) != 'dummy'])
+    return(smat_new)
+}
 
 # dplyr like functions
 
-# group_by
-#' @export
-group_by_cpgs <- function(smat, ...){
-    if (!has_cpg_metadata(smat)){
-        smat <- smat.calc_cpg_metadata(smat)
-    }
-    smat$cpg_metadata <- smat$cpg_metadata %>% group_by(...)
-    return(smat)
-}
-#' @export
-group_by_cells <- function(smat, ...){
-    if (!has_cell_metadata(smat)){
-        smat <- smat.calc_cell_metadata(smat)
-    }
-    smat$cell_metadata <- smat$cell_metadata %>% group_by(...)
-    return(smat)
-}
+# # group_by
+# #' @export
+# group_by_cpgs <- function(smat, ...){
+#     if (!has_cpg_metadata(smat)){
+#         smat <- smat.calc_cpg_metadata(smat)
+#     }
+#     smat$cpg_metadata <- smat$cpg_metadata %>% group_by(...)
+#     return(smat)
+# }
+# #' @export
+# group_by_cells <- function(smat, ...){
+#     if (!has_cell_metadata(smat)){
+#         smat <- smat.calc_cell_metadata(smat)
+#     }
+#     smat$cell_metadata <- smat$cell_metadata %>% group_by(...)
+#     return(smat)
+# }
 
-# ungroup
-#' @export
-ungroup_cpgs <- function(smat, ...){
-    if (has_cpg_metadata(smat)){
-        smat$cpg_metadata <- smat$cpg_metadata %>% ungroup()
-    }
-    return(smat)
-}
+# # ungroup
+# #' @export
+# ungroup_cpgs <- function(smat, ...){
+#     if (has_cpg_metadata(smat)){
+#         smat$cpg_metadata <- smat$cpg_metadata %>% ungroup()
+#     }
+#     return(smat)
+# }
 
-#' @export
-ungroup_cells <- function(smat, ...){
-    if (has_cell_metadata(smat)){
-        smat$cell_metadata <- smat$cell_metadata %>% ungroup()
-    }
-    return(smat)
-}
+# #' @export
+# ungroup_cells <- function(smat, ...){
+#     if (has_cell_metadata(smat)){
+#         smat$cell_metadata <- smat$cell_metadata %>% ungroup()
+#     }
+#     return(smat)
+# }
 
-# get groups
-#' @export
-cpg_groups <- function(smat){
-    if (has_cpg_metadata(smat)){
-        return(group_vars(smat$cpg_metadata))
-    }
-    return(NULL)    
-}
+# # get groups
+# #' @export
+# cpg_groups <- function(smat){
+#     if (has_cpg_metadata(smat)){
+#         return(group_vars(smat$cpg_metadata))
+#     }
+#     return(NULL)    
+# }
 
-#' @export
-cell_groups <- function(smat){
-    if (has_cell_metadata(smat)){
-        return(group_vars(smat$cell_metadata))
-    }
-    return(NULL)    
-}
+# #' @export
+# cell_groups <- function(smat){
+#     if (has_cell_metadata(smat)){
+#         return(group_vars(smat$cell_metadata))
+#     }
+#     return(NULL)    
+# }
 
-# mutate
-#' @export
-mutate_cpgs <- function(smat, ...){
-    if (!has_cpg_metadata(smat)){
-        smat <- smat.calc_cpg_metadata(smat)
-    }
-    smat$cpg_metadata <- smat$cpg_metadata %>% mutate(...)
-    return(smat)
-}
+# # mutate
+# #' @export
+# mutate_cpgs <- function(smat, ...){
+#     if (!has_cpg_metadata(smat)){
+#         smat <- smat.calc_cpg_metadata(smat)
+#     }
+#     smat$cpg_metadata <- smat$cpg_metadata %>% mutate(...)
+#     return(smat)
+# }
 
-#' @export
-mutate_cells <- function(smat, ...){
-    if (!has_cell_metadata(smat)){
-        smat <- smat.calc_cell_metadata(smat)
-    }
-    smat$cell_metadata <- smat$cell_metadata %>% mutate(...)
-    return(smat)
-}
+# #' @export
+# mutate_cells <- function(smat, ...){
+#     if (!has_cell_metadata(smat)){
+#         smat <- smat.calc_cell_metadata(smat)
+#     }
+#     smat$cell_metadata <- smat$cell_metadata %>% mutate(...)
+#     return(smat)
+# }
 
-# filter
-#' @export
-filter_cpgs <- function(smat, ...){
-    if (!has_cpg_metadata(smat)){
-        smat <- smat.calc_cpg_metadata(smat)
-    }
-    smat$cpg_metadata <- smat$cpg_metadata %>% filter(...)
-    smat <- smat.filter_cpgs(smat, cpg_intervs=select(smat$cpg_metadata, chrom, start, end))    
-    return(smat)
-}
+# # filter
+# #' @export
+# filter_cpgs <- function(smat, ...){
+#     if (!has_cpg_metadata(smat)){
+#         smat <- smat.calc_cpg_metadata(smat)
+#     }
+#     smat$cpg_metadata <- smat$cpg_metadata %>% filter(...)
+#     smat <- smat.filter_cpgs(smat, cpg_intervs=select(smat$cpg_metadata, chrom, start, end))    
+#     return(smat)
+# }
 
-#' @export
-filter_cells <- function(smat, ...){
-    if (!has_cell_metadata(smat)){
-        smat <- smat.calc_cell_metadata(smat)
-    }
-    smat$cell_metadata <- smat$cell_metadata %>% filter(...)
-    smat <- smat.select(smat, cols=smat$cell_metadata$cell_id)
-    return(smat)
-}
+# #' @export
+# filter_cells <- function(smat, ...){
+#     if (!has_cell_metadata(smat)){
+#         smat <- smat.calc_cell_metadata(smat)
+#     }
+#     smat$cell_metadata <- smat$cell_metadata %>% filter(...)
+#     smat <- smat.select(smat, cols=smat$cell_metadata$cell_id)
+#     return(smat)
+# }
 
-# summarise
-# smat.summarise <- function()
+# # summarise
+# # smat.summarise <- function()
 
-#' @export
-get_cells <- function(smat){
-    smat$cell_metadata
-}
+# #' @export
+# get_cells <- function(smat){
+#     smat$cell_metadata
+# }
 
-#' @export
-get_cpgs <- function(smat){
-    smat$cpg_metadata
-}
+# #' @export
+# get_cpgs <- function(smat){
+#     smat$cpg_metadata
+# }
 
 
 # Boolean functions
