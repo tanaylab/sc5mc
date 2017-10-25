@@ -15,7 +15,7 @@
 sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20, regions=NULL, capture_stats = FALSE, ofn=NULL, width=NULL, base_height=9, ...){
 	old <- theme_set(theme_bw(base_size=8))
 	on.exit(theme_set(old))
-	if (any(min_cpgs != 1, max_cpgs != Inf,  min_cells != 1, max_cells != Inf)){		
+	if (any(min_cpgs != 1, max_cpgs != Inf,  min_cells != 1, max_cells != Inf)){			
 		smat <- smat.filter_by_cov(smat, min_cells=min_cells, max_cells=max_cells, max_cpgs=max_cpgs, min_cpgs=min_cpgs)
 	}
 
@@ -84,17 +84,26 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 }
 
 #' @export
-sc5mc.plot_reads_per_cpg <- function(smat){
+sc5mc.reads_per_cpg <- function(smat){
 	if (!has_stats(smat)){
 		stop('no stats field!')
 	}
 	stats <- smat$stats
 	if (!has_name(stats, 'cpg_num')){
-		cell_mars <- smat.cell_marginals(smat) %>% rename(lib=cell_id, cpg_num=cov)
-		stats <- stats %>% left_join(cell_mars, by='lib')
-	}
+		cell_mars <- smat.cell_marginals(smat) %>% rename(cpg_num=cov)
+		if (has_name(stats, 'lib')){
+			stats <- stats %>% rename(cell_id = lib)
+		}
+		stats <- stats %>% left_join(cell_mars, by='cell_id')
+	}	
+	return(stats)
+}
+
+#' @export
+sc5mc.plot_reads_per_cpg <- function(smat){
+	stats <- sc5mc.reads_per_cpg(smat)
 	
-	p <- stats %>% ggplot(aes(x=total_reads, y=cpg_num)) + geom_point(size=0.5, shape=19) + scale_y_continuous(label=comify)  + scale_x_continuous(label=scales::comma) + xlab('# of reads') + ylab('# of CpGs') + stat_smooth(method='lm', se=F, linetype='dashed') + ggpmisc::stat_poly_eq(formula = y~ x, eq.with.lhs = "italic(hat(y))~`=`~", aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), size=2, color='darkred', parse = TRUE) + labs(subtitle = qq('median reads = @{comify(round(median(stats$total_reads, na.rm=TRUE)))}\nmedian cpgs = @{comify(round(median(stats$cpg_num, na.rm=TRUE)))}'))
+	p <- stats %>% ggplot(aes(x=total_reads, y=cpg_num)) + geom_point(size=0.5, shape=19) + scale_y_continuous(label=comify) + scale_x_continuous(label=scales::comma) + xlab('# of reads') + ylab('# of CpGs') + stat_smooth(method='lm', se=F, linetype='dashed') + ggpmisc::stat_poly_eq(formula = y~ x, eq.with.lhs = "italic(hat(y))~`=`~", aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), size=2, color='darkred', parse = TRUE) + labs(subtitle = qq('median reads = @{comify(round(median(stats$total_reads, na.rm=TRUE)))}\nmedian cpgs = @{comify(round(median(stats$cpg_num, na.rm=TRUE)))}'))
 	return(p)	
 }
 
@@ -132,7 +141,7 @@ sc5mc.plot_cpg_marginals <- function(smat, type='percent'){
 	} else {
 		p <- mars %>% ggplot(aes(x=cells, y=c_cpgs)) + geom_point(size=0.3) + scale_x_log10(breaks=x_breaks) + scale_y_log10(label=comify) + ylab('log10(CpGs with # cells >= x)') + xlab('log10(# of cells)')
 	}
-	p <- p + labs(subtitle = qq('number of cells = @{comify(ncol(smat$cov))}\nnumber of cpgs = @{comify(nrow(smat$cov))}'))
+	p <- p + labs(subtitle = qq('number of cells = @{comify(ncol(smat$cov))}\nnumber of cpgs = @{comify(nrow(smat$cov))}')) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))
 	return(p)
 }
 
@@ -169,7 +178,7 @@ sc5mc.plot_cell_pairs_coverage <- function(smat){
 	cmars <- mars %>% count(ntot) %>% arrange(-ntot) %>% mutate(cn = cumsum(n), p = cn / sum(n))
 
 	x_breaks <- as.numeric(round(quantile(cmars$ntot, probs=c(0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1))))
-	p <- cmars %>% ggplot(aes(x=ntot, y=p)) + geom_point(size=0.3) + xlab('log10(# of jointly covered CpGs)') + ylab('% of cell pairs') + scale_x_log10(label=comify, breaks=x_breaks) + scale_y_continuous(labels=scales::percent) + labs(subtitle = qq('number of cells = @{comify(length(unique(mars$cell1)))}\nnumber of pairs = @{comify(nrow(mars))}'))
+	p <- cmars %>% ggplot(aes(x=ntot, y=p)) + geom_point(size=0.3) + xlab('log10(# of jointly covered CpGs)') + ylab('% of cell pairs') + scale_x_log10(label=comify, breaks=x_breaks) + scale_y_continuous(labels=scales::percent) + labs(subtitle = qq('number of cells = @{comify(length(unique(mars$cell1)))}\nnumber of pairs = @{comify(nrow(mars))}')) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))
 	return(p)
 }
 
@@ -332,22 +341,26 @@ sc5mc.reads_per_region <- function(smat, intervals){
         select(chrom=chrom1, start=start1, end=end1, cov=n)
 
     covs <- covs %>%
-        full_join(intervals) %>% 
-        replace_na(replace=list(cov = 0))   
+        full_join(intervals, by=c('chrom', 'start', 'end')) %>% 
+        replace_na(replace=list(cov = 0)) %>% 
+		ungroup()
 
     return(covs) 	
 }
 
 #' @export
 sc5mc.plot_reads_per_region <- function(smat, intervals){
-	reg_stats <- sc5mc.reads_per_region(smat, intervals)
+	reg_stats <- sc5mc.reads_per_region(smat, intervals)	
 	p <- reg_stats %>% 
-		ggplot(aes(x=cov)) + 
-		geom_histogram(fill='darkblue') + 
-		scale_y_continuous(labels=comify) + 
-		ylab("# of regions") + 
-		xlab("Reads") + 
-		labs(subtitle=glue("number of reads: {comify(sum(reg_stats$cov))}"))
+		ungroup() %>% 
+		count(cov) %>% 
+		mutate(cum = rev(cumsum(rev(n)))) %>% 
+		ggplot(aes(x=cov, y=cum)) + 
+			geom_point(size=0.5, shape=19) + 
+			xlab("Reads") + 
+			ylab("Regions with at least x reads") + 
+			scale_y_continuous(labels=comify) +
+			labs(subtitle=glue("number of reads: {comify(sum(reg_stats$cov))}"))
 	return(p) 
 }
 

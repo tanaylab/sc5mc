@@ -1,0 +1,105 @@
+genomes:
+  mm9:
+    genome_seq: '/net/mraid14/export/data/db/tgdb/mm9/seq'
+    bissli2_idx: '/net/mraid14/export/data/tools/bissli2/mm9/mm9'
+    groot: '/home/aviezerl/mm9'    
+  hg19:
+    genome_seq: '/net/mraid14/export/data/db/tgdb/hg19/seq'
+    bissli2_idx: '/net/mraid14/export/data/tools/bissli2/hg19/hg19'
+    groot: '/home/aviezerl/hg19'
+
+steps_defaults: &steps_defaults
+  parallel: true
+  use_sge: true
+
+steps: &steps
+  demultiplexing: 
+    description: 'demultiplexing fastqs per illumina index'
+    func: gpatterns.demultiplex_fastqs
+    clean: rm -rf '{split_dir}/*'      
+    params:          
+      log_prefix: '{workdir}/fastq/{illumina_index}/raw/split/log/{raw_fastq_basename}'        
+      # log_prefix: '{workdir}/{illumina_index}/raw/split/log/{illumina_index}'        
+      raw_reads_dir: '{workdir}/fastq/{illumina_index}/raw'
+      split_dir: '{raw_reads_dir}/split'
+      indexes_file: '{split_dir}/indexes/{raw_fastq_basename}_indexes.tsv' 
+      raw_fastq_pattern: '.*_{read}_.*\\.fastq.gz'
+      R1_pattern: 'R1'
+      R2_pattern: 'R2'  
+      idx1_pos : [1, 8]
+      idx2_pos : [1, 8]
+      umi1_pos : [11, 19]
+      umi2_pos : [11, 19]
+      read1_pos: [20, 80]
+      read2_pos: [20, 80]
+      hamming: 1
+      paired_end: true
+      reads_per_file: NULL  
+      io_saturation: true
+      run_per_file: true
+      <<: *steps_defaults
+
+  mapping: 
+    description: 'mapping fastqs using bissli2'
+    func: gpatterns.map
+    clean: rm -f '{out_bam}'        
+    params:
+      log_prefix: '{workdir}/bam/log/{fastq_basename}' 
+      out_bam: '{workdir}/bam/{fastq_basename}.bam'
+      log_file: '{workdir}/bam/log/{fastq_basename}.log'  
+      bissli2_bin: '/net/mraid14/export/data/users/eladch/tools/CO6/perl/5.22.0/bin/perl /home/aviezerl/repo/gpatterns/inst/bissli2/bissli2-align.pl' 
+      bowtie2: 'bowtie2'
+      samtools: 'samtools'
+      maxins: 1000    
+      genome_type: 'ga'  
+      verify: true 
+      threads: 10
+      io_saturation: false
+      <<: *steps_defaults
+  bam2smat:
+    description: 'generating smat object'
+    func: sc5mc.smat_per_experiment
+    # clean: gpatterns.rm '{track}'      
+    params:
+        log_prefix: '{workdir}/sparse_matrices/log/{experiment}'
+        io_saturation: true
+        prefix: '{workdir}/sparse_matrices/{experiment}/smat'
+        description: 'experiment: {experiment}'
+        name: '{experiment}'  
+        cell_metadata: '{workdir}/cell_metadata.csv'
+        keep_tidy_cpgs: true
+        load_existing: false
+        <<: *steps_defaults           
+
+# defaults: &defaults
+#     parallel: true
+#     workdir: !expr getwd()
+#     indexes_file: '{split_dir}/indexes/{raw_fastq_basename}_indexes.tsv'    
+#     pipeline_steps:        
+#         - demultiplexing     
+#         - mapping
+#         - bam2smat  
+
+# experiments:
+#   MEFserum2d:
+#     pbat_id: 'pbat1'
+#     capture_id: 'capt1'
+#     config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/test_config/MEFserum2d.csv'
+#     # config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/MEFserum2d.csv'
+#     # pipeline_steps:    
+#     #   - bam2tracks
+#     # <<: [*defaults, *global_defaults]
+#     <<: *defaults
+#   MEFserum2d2RA:
+#     pbat_id: 'pbat2'    
+#     config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/test_config/MEFserum2d2RA.csv'    
+#     # config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/MEFserum2d2RA.csv'    
+#     # <<: [*defaults, *global_defaults]
+#     <<: *defaults
+#   N2B22:
+#     pbat_id: 'pbat3'
+#     config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/test_config/N2B22.csv'
+#     # config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/N2B22.csv'
+#     genome: mm9    
+#     # <<: [*defaults, *global_defaults]
+#     <<: *defaults

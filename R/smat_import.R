@@ -14,12 +14,13 @@
 #' @param keep_tidy_cpgs keep tidy cpgs attached to the smat object
 #' @param load_existing load existing tidy cpgs
 #' @param filter_dups relevenat only when load_existing is TRUE: filter duplicates
+#' @param single_cell take only a single methylation call per CpG
 #' @param ... additional parameters to \code{gpatterns::gpatterns.import_from_bam}
 #' 
 #' @return smat object (inivisibly if prefix is not NULL)
 #'
 #' @export
-smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', keep_tidy_cpgs=TRUE, load_existing=FALSE, filter_dups=FALSE, io_saturation=FALSE, threads=10, cell_metadata=NULL, keep_tidy_calls=TRUE, ...){
+smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', keep_tidy_cpgs=TRUE, load_existing=FALSE, filter_dups=FALSE, io_saturation=FALSE, threads=10, cell_metadata=NULL, keep_tidy_calls=TRUE, single_cell=TRUE, ...){
 
     bam2calls <- function(bams, lib, workdir=workdir, keep_tidy_cpgs=keep_tidy_cpgs, load_existing=load_existing, ...){                        
         if (keep_tidy_cpgs){
@@ -45,7 +46,11 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         if (is.null(tcpgs)){
             return(NULL)
         }
-        calls <- tcpgs2calls(tcpgs, lib)
+        if (single_cell){
+            calls <- tcpgs2calls(tcpgs, lib)    
+        } else {
+            calls <- gpatterns.tidy_cpgs_2_pileup(tcpgs) %>% mutate(track=lib) %>% select(track, chrom, start, end, meth, unmeth, cov)
+        }        
 
         tidy_cpgs_stats_dir <- paste0(tcpgs_dir, '/stats')
         uniq_tidy_cpgs_stats_dir <- paste0(uniq_tcpgs_dir, '/stats')
@@ -70,8 +75,10 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         tidy_calls <- map(cmds, ~ eval(parse(text=.x))) %>% map('calls') %>% compact() %>% map_df(~ .x)
         stats <- map(cmds, ~ eval(parse(text=.x))) %>% map('stats') %>% compact() %>% map_df(~ .x)
     }
-   
-    tidy_calls <- tidy_calls %>% mutate(unmeth = if_else(meth == 0, 1, 0), cov=1)
+    
+    if (single_cell){
+        tidy_calls <- tidy_calls %>% mutate(unmeth = if_else(meth == 0, 1, 0), cov=1)
+    }
     if (keep_tidy_calls){
         fwrite(tidy_calls, paste0(prefix, '_tidy_calls.csv'))    
     }    
@@ -188,10 +195,10 @@ smat.from_df <- function(df, name='', description='', intervs=NULL){
     }
     tidy_calls <- tidy_calls %>% inner_join(intervs, by=c('chrom', 'start', 'end')) %>% arrange(id)
 
-    parallel <- TRUE
-    if (nrow(tidy_calls) * ncol(tidy_calls) > (2^31 - 1)){
+    # parallel <- TRUE
+    # if (nrow(tidy_calls) * ncol(tidy_calls) > (2^31 - 1)){
         parallel <- FALSE
-    }
+    # }
     smat <- plyr::alply(c('meth', 'unmeth', 'cov'), 1, function(x) {
         message(sprintf('creating %s', x))
         tidy2smat(tidy_calls, 'id', column_name, x)
