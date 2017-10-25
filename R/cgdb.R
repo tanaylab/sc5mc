@@ -97,8 +97,8 @@ cgdb_init <- function(db_root, intervals=NULL){
 }
 
 cgdb_update_cells <- function(cgdb, cells, append=FALSE){   
-    if (append){
-        cells <- bind_rows(cgdb@cells, cells)
+    if (append){        
+        cells <- bind_rows(cgdb@cells %>% filter(!(cell_id %in% cells$cell_id)), cells)
     }
     fwrite(cells, glue('{cgdb@db_root}/cells.csv'), sep=',')    
     cgdb@cells <- cells
@@ -122,10 +122,11 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL){
     }
 
     plate_fn <- glue('{cgdb@db_root}/{plate_name}')
-    if (!(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))){        
+    if (!(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))){  
+        print('problem')      
+        browser()
         smat <- smat.add_intervals(smat, cgdb@cpgs %>% select(chrom, start, end))   
     }
-    
 
     cells <- smat$cell_metadata %>% 
         left_join(tibble(cell_id = colnames(smat))) %>% 
@@ -134,9 +135,7 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL){
         mutate(cell_num = as.numeric(cell_num)) %>% 
         arrange(cell_num)
 
-    stopifnot(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))
-
-    
+    stopifnot(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))    
 
     plyr::alply(cells, 1, function(x) {
             cell <- x$cell_id
@@ -153,9 +152,9 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL){
 
             dir.create(dirname, showWarnings=FALSE, recursive=TRUE)
 
-            writeBin(idxs, paste0(fname, '.idx_c.bin'), size=4)
-            writeBin(met_vec[idxs], paste0(fname, '.meth_c.bin'), size=4)
-            writeBin(met_vec[idxs], paste0(fname, '.cov_c.bin'), size=4)
+            writeBin(idxs, paste0(fname, '.idx.bin'), size=4)
+            writeBin(met_vec[idxs], paste0(fname, '.meth.bin'), size=4)
+            writeBin(cov_vec[idxs], paste0(fname, '.cov.bin'), size=4)
         }, .parallel=TRUE)
     
 
@@ -223,13 +222,14 @@ summarise.cgdb <- function(.Object){
     }
 
     if (!has_cell_groups && !has_cpg_groups){
-        res <- extract(.Object)
+        # res <- extract(.Object)
+        res <- summarise_cpgs(.Object, .Object@cpgs) 
     }        
 
     return(res)
 }
 
-summarise_cpgs <- function(cgdb, cpgs){    
+summarise_cpgs <- function(cgdb, cpgs){        
     scdata <- mean_meth(cpgs$id, file.path(cgdb@db_root, 'data'), cgdb@cells$cell_id, cgdb@CPG_NUM) %>% as_tibble() %>% rename(cell_id = cell)    
     return(scdata)
 }
