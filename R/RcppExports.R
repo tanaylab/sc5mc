@@ -5,3 +5,11 @@ mean_meth <- function(idxs, db_dir, cells, CPG_NUM) {
     .Call('_sc5mc_mean_meth', PACKAGE = 'sc5mc', idxs, db_dir, cells, CPG_NUM)
 }
 
+bin_meth <- function(idxs, bins, db_dir, cells, CPG_NUM) {
+    .Call('_sc5mc_bin_meth', PACKAGE = 'sc5mc', idxs, bins, db_dir, cells, CPG_NUM)
+}
+
+bin_meth_per_cell_cpp <- function(idxs, bins, db_dir, cells, CPG_NUM) {
+    .Call('_sc5mc_bin_meth_per_cell_cpp', PACKAGE = 'sc5mc', idxs, bins, db_dir, cells, CPG_NUM)
+}
+

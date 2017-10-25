@@ -19,9 +19,41 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// bin_meth
+DataFrame bin_meth(IntegerVector const& idxs, IntegerVector const& bins, std::string const& db_dir, std::vector<std::string> const& cells, const int& CPG_NUM);
+RcppExport SEXP _sc5mc_bin_meth(SEXP idxsSEXP, SEXP binsSEXP, SEXP db_dirSEXP, SEXP cellsSEXP, SEXP CPG_NUMSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector const& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector const& >::type bins(binsSEXP);
+    Rcpp::traits::input_parameter< std::string const& >::type db_dir(db_dirSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> const& >::type cells(cellsSEXP);
+    Rcpp::traits::input_parameter< const int& >::type CPG_NUM(CPG_NUMSEXP);
+    rcpp_result_gen = Rcpp::wrap(bin_meth(idxs, bins, db_dir, cells, CPG_NUM));
+    return rcpp_result_gen;
+END_RCPP
+}
+// bin_meth_per_cell_cpp
+List bin_meth_per_cell_cpp(IntegerVector const& idxs, IntegerVector const& bins, std::string const& db_dir, std::vector<std::string> const& cells, const int& CPG_NUM);
+RcppExport SEXP _sc5mc_bin_meth_per_cell_cpp(SEXP idxsSEXP, SEXP binsSEXP, SEXP db_dirSEXP, SEXP cellsSEXP, SEXP CPG_NUMSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector const& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector const& >::type bins(binsSEXP);
+    Rcpp::traits::input_parameter< std::string const& >::type db_dir(db_dirSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> const& >::type cells(cellsSEXP);
+    Rcpp::traits::input_parameter< const int& >::type CPG_NUM(CPG_NUMSEXP);
+    rcpp_result_gen = Rcpp::wrap(bin_meth_per_cell_cpp(idxs, bins, db_dir, cells, CPG_NUM));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_mean_meth", (DL_FUNC) &_sc5mc_mean_meth, 4},
+    {"_sc5mc_bin_meth", (DL_FUNC) &_sc5mc_bin_meth, 5},
+    {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 5},
     {NULL, NULL, 0}
 };
 
