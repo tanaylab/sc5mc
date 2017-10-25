@@ -97,7 +97,7 @@ cgdb_init <- function(db_root, intervals=NULL){
 }
 
 cgdb_update_cells <- function(cgdb, cells, append=FALSE){   
-    if (append){        
+    if (append){
         cells <- bind_rows(cgdb@cells %>% filter(!(cell_id %in% cells$cell_id)), cells)
     }
     fwrite(cells, glue('{cgdb@db_root}/cells.csv'), sep=',')    
@@ -182,26 +182,6 @@ extract.cgdb <- function(.Object, cells=NULL, cpgs=NULL){
     return(extract_sc_data(.Object, cells, cpgs %>% select(chrom, start, end, id)))  
 }
 
-# extract_sc_data <- function(cgdb, cells, cpgs){
-#     cells_md <- cgdb@cells %>% ungroup() %>% filter(cell_id %in% cells) %>% select(cell_id, cell_num, plate)
-
-#     res <- cells_md %>% arrange(plate, cell_num) %>% plyr::ddply(plyr::.(plate), function(x){       
-#         plate <- x$plate[1]
-#         h5f <- get_h5_obj(cgdb, plate)
-#         m_meth <- h5f['meth'][cpgs$id, x$cell_num]
-#         m_cov <- h5f['cov'][cpgs$id, x$cell_num]
-#         cpgs_f <- rowSums(m_cov) > 0
-
-#         cov_tab <- bind_cols(cpgs[cpgs_f, ], as.data.frame(m_cov) %>% set_names(x$cell_id) %>% filter(cpgs_f)) %>% as_tibble() %>% select(-id)
-#         meth_tab <- bind_cols(cpgs[cpgs_f, ], as.data.frame(m_meth) %>% set_names(x$cell_id) %>% filter(cpgs_f)) %>% as_tibble() %>% select(-id)
-#         stab <- cov_tab %>% gather('cell_id', 'cov', -(chrom:end)) %>% mutate(meth = meth_tab %>% gather('cell_id', 'meth', -(chrom:end)) %>% pull(meth)) %>% filter(cov > 0)
-#         return(stab)
-#     } )
-#     res <- res %>% select(chrom, start, end, cell_id, cov, meth) %>% as_tibble()
-    
-#     return(res) 
-# }
-
 #' Summarise data from intervals and cells
 #'
 #' @export
@@ -209,43 +189,95 @@ summarise.cgdb <- function(.Object){
     has_cell_groups <- is_grouped_df(.Object@cells)
     has_cpg_groups <- is_grouped_df(.Object@cpgs)
 
+    # summary of groups of cells per CpG
     if (has_cell_groups && !has_cpg_groups){        
         res <- .Object@cells %>% do(summarise_cells(.Object, .$cell_id)) %>% ungroup() %>% select(chrom, start, end, everything())      
     }
-    if (!has_cell_groups && has_cpg_groups){        
-        res <- .Object@cpgs %>% do(summarise_cpgs(.Object, .)) %>% ungroup()        
+
+    # summary of groups of CpGs per cell
+    if (!has_cell_groups && has_cpg_groups){   
+        res <- summarise_by_cpg_groups(.Object)
     }
 
+    # summary of groups of CpGs and cells
     if (has_cell_groups && has_cpg_groups){
-        f <- function(.Object, cpgs) { .Object@cells %>% do(summarise_sc_data(.Object, .$cell_id, cpgs)) }
-        res <- .Object@cpgs %>% do(f(.Object, .)) %>% ungroup()     
+        res <- summarise_by_both_groups(.Object)        
     }
 
-    if (!has_cell_groups && !has_cpg_groups){
-        # res <- extract(.Object)
+    # summary of CpGs per cell
+    if (!has_cell_groups && !has_cpg_groups){        
+        warning('Summarising CpGs. If you want to summarise cells please call summarise_cells explicitly')
         res <- summarise_cpgs(.Object, .Object@cpgs) 
     }        
 
-    return(res)
+    res <- res %>% ungroup()
+
+    return(as_tibble(res))
 }
 
-summarise_cpgs <- function(cgdb, cpgs){        
+
+#' Summary of CpGs per cell
+#' 
+#' @export
+summarise_cpgs <- function(cgdb, cpgs=NULL){        
+    cpgs <- cpgs %||% cgdb@cpgs
     scdata <- mean_meth(cpgs$id, file.path(cgdb@db_root, 'data'), cgdb@cells$cell_id, cgdb@CPG_NUM) %>% as_tibble() %>% rename(cell_id = cell)    
     return(scdata)
 }
 
-summarise_cells <- function(cgdb, cells){   
-    browser()
-    # scdata <- cgdb %>% extract(cells, cgdb@cpgs)
-    # scdata <- scdata %>% group_by(chrom, start, end) %>% summarise(cov = sum(cov), meth = sum(meth)) %>% ungroup()
-    return(scdata)
-    
+#' Summary of cells per CpG
+#' 
+#' @export
+summarise_cells <- function(cgdb, cells=NULL){
+    cells <- cells %||% cgdb@cells$cell_id
+    scdata <- mean_meth_per_cpg(idxs=cgdb@cpgs$id, db_dir=file.path(cgdb@db_root, 'data'), cells=cells, CPG_NUM=cgdb@CPG_NUM)    
+    scdata <- cgdb@cpgs %>% select(-id) %>% bind_cols(scdata) %>% as_tibble() 
+    return(scdata)    
 }
 
-summarise_sc_data <- function(cgdb, cells, cpgs){
-    # scdata <- cgdb %>% extract(cells, cpgs) %>% summarise(cov = sum(cov), meth = sum(meth))
-    browser()
-    return(scdata)
+summarise_by_cpg_groups <- function(cgdb){        
+    bins <- cgdb@cpgs %>% group_indices()    
+    
+    res <- bin_meth_per_cell(cgdb@cpgs$id, bins, file.path(cgdb@db_root, 'data'), cgdb@cells$cell_id, cgdb@CPG_NUM)     
+
+    cpgs <- cgdb@cpgs
+    cpgs$bin <- bins
+    res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% select(cell, everything()) %>% ungroup()
+    return(res)  
+}
+
+summarise_by_both_groups <- function(cgdb){
+    bins <- cgdb@cpgs %>% group_indices()    
+
+    res <- cgdb@cells %>% do(bin_meth(cgdb@cpgs$id, bins, file.path(cgdb@db_root, 'data'), .$cell_id, cgdb@CPG_NUM)) %>% ungroup()
+
+    cpgs <- cgdb@cpgs
+    cpgs$bin <- bins
+    
+    res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% ungroup() 
+    return(res)
+}
+
+# CPP helper functions
+mean_meth_per_cpg <- function(idxs, db_dir, cells, CPG_NUM){
+    bins <- 1:length(idxs)        
+    res <- bin_meth(idxs, bins, db_dir, cells, CPG_NUM)
+    res <- res %>% mutate(id = idxs) %>% select(id, cov, meth)
+    return(res)
+}
+
+bin_meth_per_cell <- function(idxs, bins, db_dir, cells, CPG_NUM){    
+    res <- bin_meth_per_cell_cpp(idxs, bins, db_dir, cells, CPG_NUM)
+
+    res <- purrr::map2(res[1:2], names(res[1:2]), ~ 
+        as.data.frame(.x[, -1], row.names=cells) %>% 
+        rownames_to_column() %>% 
+        set_names(c('cell', res$bin)) %>% 
+        gather('bin', 'var', -cell) %>% 
+        set_names(c('cell', 'bin', .y)) %>%
+        as_tibble())
+    res <- res$cov %>% mutate(meth = res$meth$meth, bin = as.numeric(bin))
+    return(res)    
 }
 
 
