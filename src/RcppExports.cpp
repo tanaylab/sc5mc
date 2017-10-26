@@ -6,54 +6,54 @@
 using namespace Rcpp;
 
 // mean_meth
-DataFrame mean_meth(IntegerVector const& idxs, std::string const& db_dir, std::vector<std::string> const& cells, const int& CPG_NUM);
-RcppExport SEXP _sc5mc_mean_meth(SEXP idxsSEXP, SEXP db_dirSEXP, SEXP cellsSEXP, SEXP CPG_NUMSEXP) {
+DataFrame mean_meth(SEXP cgdb, const IntegerVector& idxs, const std::vector<std::string>& cells);
+RcppExport SEXP _sc5mc_mean_meth(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP cellsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< IntegerVector const& >::type idxs(idxsSEXP);
-    Rcpp::traits::input_parameter< std::string const& >::type db_dir(db_dirSEXP);
-    Rcpp::traits::input_parameter< std::vector<std::string> const& >::type cells(cellsSEXP);
-    Rcpp::traits::input_parameter< const int& >::type CPG_NUM(CPG_NUMSEXP);
-    rcpp_result_gen = Rcpp::wrap(mean_meth(idxs, db_dir, cells, CPG_NUM));
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type cells(cellsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mean_meth(cgdb, idxs, cells));
     return rcpp_result_gen;
 END_RCPP
 }
 // bin_meth
-DataFrame bin_meth(IntegerVector const& idxs, IntegerVector const& bins, std::string const& db_dir, std::vector<std::string> const& cells, const int& CPG_NUM);
-RcppExport SEXP _sc5mc_bin_meth(SEXP idxsSEXP, SEXP binsSEXP, SEXP db_dirSEXP, SEXP cellsSEXP, SEXP CPG_NUMSEXP) {
+DataFrame bin_meth(SEXP cgdb, const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
+RcppExport SEXP _sc5mc_bin_meth(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP binsSEXP, SEXP cellsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< IntegerVector const& >::type idxs(idxsSEXP);
-    Rcpp::traits::input_parameter< IntegerVector const& >::type bins(binsSEXP);
-    Rcpp::traits::input_parameter< std::string const& >::type db_dir(db_dirSEXP);
-    Rcpp::traits::input_parameter< std::vector<std::string> const& >::type cells(cellsSEXP);
-    Rcpp::traits::input_parameter< const int& >::type CPG_NUM(CPG_NUMSEXP);
-    rcpp_result_gen = Rcpp::wrap(bin_meth(idxs, bins, db_dir, cells, CPG_NUM));
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type bins(binsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type cells(cellsSEXP);
+    rcpp_result_gen = Rcpp::wrap(bin_meth(cgdb, idxs, bins, cells));
     return rcpp_result_gen;
 END_RCPP
 }
 // bin_meth_per_cell_cpp
-List bin_meth_per_cell_cpp(IntegerVector const& idxs, IntegerVector const& bins, std::string const& db_dir, std::vector<std::string> const& cells, const int& CPG_NUM);
-RcppExport SEXP _sc5mc_bin_meth_per_cell_cpp(SEXP idxsSEXP, SEXP binsSEXP, SEXP db_dirSEXP, SEXP cellsSEXP, SEXP CPG_NUMSEXP) {
+List bin_meth_per_cell_cpp(SEXP cgdb, const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
+RcppExport SEXP _sc5mc_bin_meth_per_cell_cpp(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP binsSEXP, SEXP cellsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< IntegerVector const& >::type idxs(idxsSEXP);
-    Rcpp::traits::input_parameter< IntegerVector const& >::type bins(binsSEXP);
-    Rcpp::traits::input_parameter< std::string const& >::type db_dir(db_dirSEXP);
-    Rcpp::traits::input_parameter< std::vector<std::string> const& >::type cells(cellsSEXP);
-    Rcpp::traits::input_parameter< const int& >::type CPG_NUM(CPG_NUMSEXP);
-    rcpp_result_gen = Rcpp::wrap(bin_meth_per_cell_cpp(idxs, bins, db_dir, cells, CPG_NUM));
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type bins(binsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type cells(cellsSEXP);
+    rcpp_result_gen = Rcpp::wrap(bin_meth_per_cell_cpp(cgdb, idxs, bins, cells));
     return rcpp_result_gen;
 END_RCPP
 }
 
+RcppExport SEXP CGDB__new(SEXP, SEXP);
+
 static const R_CallMethodDef CallEntries[] = {
-    {"_sc5mc_mean_meth", (DL_FUNC) &_sc5mc_mean_meth, 4},
-    {"_sc5mc_bin_meth", (DL_FUNC) &_sc5mc_bin_meth, 5},
-    {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 5},
+    {"_sc5mc_mean_meth", (DL_FUNC) &_sc5mc_mean_meth, 3},
+    {"_sc5mc_bin_meth", (DL_FUNC) &_sc5mc_bin_meth, 4},
+    {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 4},
+    {"CGDB__new",                    (DL_FUNC) &CGDB__new,                    2},
     {NULL, NULL, 0}
 };
 

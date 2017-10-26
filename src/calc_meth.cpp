@@ -10,17 +10,97 @@ using namespace Rcpp;
 unsigned get_file_length(std::string const& fname);
 void* mmap_file(std::string const& fname, unsigned length);
 void unmap_file(void* map, unsigned length);
-unsigned get_cell_data(std::string const& cell, std::string const& db_dir, int*& cell_idx, float*& cell_met, float*& cell_cov);
+
+class CGDB {
+    protected: 
+        const std::string m_db_dir;
+        const int m_CPG_NUM;
+
+        std::unordered_map<std::string, int*> m_cell_idx;        
+        std::unordered_map<std::string, float*> m_cell_cov;
+        std::unordered_map<std::string, float*> m_cell_met;
+        std::unordered_map<std::string, int> m_ncpgs;
+
+        void add_cell_data(std::string const& cell);
+
+        unsigned get_cell_data(std::string const& cell, int*& cell_idx, float*& cell_met, float*& cell_cov);
+
+    public:
+        CGDB(const std::string& db_dir, const int& CPG_NUM): m_db_dir(db_dir), m_CPG_NUM(CPG_NUM){
+            Rcout << "constructed" << std::endl;
+            Rcout << m_db_dir << std::endl;
+            Rcout << m_CPG_NUM << std::endl;
+        }
+
+        ~CGDB(){
+            for (auto& n : m_cell_idx){
+                Rcout << "unmapped " << n.first << " idx " << std::endl;
+                unmap_file(n.second, m_ncpgs[n.first]);
+            }
+            for (auto& n : m_cell_cov){
+                Rcout << "unmapped " << n.first << " cov " << std::endl;
+                unmap_file(n.second, m_ncpgs[n.first]);
+            }
+            for (auto& n : m_cell_met){
+                Rcout << "unmapped " << n.first << " met " << std::endl;
+                unmap_file(n.second, m_ncpgs[n.first]);
+            }
+            Rcout << "destructed" << std::endl;
+        }
+
+        DataFrame mean_meth(const IntegerVector& idxs, const std::vector<std::string>& cells);
+        DataFrame bin_meth(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
+
+        List bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
+};
+
 
 ////////////////////////////////////////////////////////////////////////
-// [[Rcpp::export]]
-DataFrame mean_meth(IntegerVector const& idxs, 
-                    std::string const& db_dir, 
-                    std::vector<std::string> const& cells, 
-                    const int& CPG_NUM){
+RcppExport SEXP CGDB__new(SEXP db_dir_, SEXP CPG_NUM_){
+    std::string db_dir = as<std::string>(db_dir_);
+    int CPG_NUM = as<int>(CPG_NUM_);
+    XPtr<CGDB> ptr(new CGDB(db_dir + "/data", CPG_NUM), true);
+    return ptr;
+}
 
-    std::vector<float> mask(CPG_NUM+1, 0);
-    std::vector<float> ones(CPG_NUM+1, 1);    
+////////////////////////////////////////////////////////////////////////
+void CGDB::add_cell_data(const std::string& cell){
+    unsigned point = cell.find(".");
+    std::string fname = m_db_dir + "/" +  cell.substr(0, point) + "/" + cell.substr(point+1);
+
+    std::string idx_fname = fname + ".idx.bin";
+    std::string met_fname = fname + ".meth.bin";
+    std::string cov_fname = fname + ".cov.bin";
+    unsigned ncpgs = get_file_length(idx_fname) / 4;
+
+    m_cell_idx[cell] = (int*)mmap_file(idx_fname, ncpgs*4);        
+    m_cell_met[cell] = (float*)mmap_file(met_fname, ncpgs*4);        
+    m_cell_cov[cell] = (float*)mmap_file(cov_fname, ncpgs*4);
+    m_ncpgs[cell] = ncpgs;
+}
+
+
+////////////////////////////////////////////////////////////////////////
+unsigned CGDB::get_cell_data(const std::string& cell, int*& cell_idx, float*& cell_met, float*& cell_cov){
+
+    if (m_cell_idx.find(cell) == m_cell_idx.end()){
+        Rcout << "adding " << cell << std::endl;
+        add_cell_data(cell);
+    }
+
+    cell_idx = m_cell_idx[cell];
+    cell_met = m_cell_met[cell];
+    cell_cov = m_cell_cov[cell];
+
+    int ncpgs = m_ncpgs[cell];
+    return(ncpgs);
+}
+
+////////////////////////////////////////////////////////////////////////
+DataFrame CGDB::mean_meth(const IntegerVector& idxs,                     
+                    const std::vector<std::string>& cells){
+    std::vector<float> mask(m_CPG_NUM+1, 0);
+    std::vector<float> ones(m_CPG_NUM+1, 1);    
 
     vsUnpackV(idxs.length(), &ones[0], &mask[0], idxs.begin());
 
@@ -31,7 +111,7 @@ DataFrame mean_meth(IntegerVector const& idxs,
         int* cell_idx = NULL;
         float* cell_met = NULL;
         float* cell_cov = NULL;
-        unsigned ncpgs = get_cell_data(cells[i], db_dir, cell_idx, cell_met, cell_cov);
+        unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
 
         if ((cell_idx == NULL) || (cell_met == NULL) || (cell_cov == NULL) ) {
             meth[i] = NA_REAL;
@@ -41,24 +121,22 @@ DataFrame mean_meth(IntegerVector const& idxs,
             meth[i] = cblas_sdoti(ncpgs, cell_met, cell_idx, &mask[0]);            
             cov[i] = cblas_sdoti(ncpgs, cell_cov, cell_idx, &mask[0]);
         }
-
-        unmap_file(cell_met, ncpgs*4);
-        unmap_file(cell_cov, ncpgs*4);
-        unmap_file(cell_idx, ncpgs*4);
     }    
 
     return DataFrame::create(_["cell"]=cells, _["cov"]=cov, _["meth"]=meth);
+
 }
 
 ////////////////////////////////////////////////////////////////////////
 // [[Rcpp::export]]
-DataFrame bin_meth(IntegerVector const& idxs, 
-                   IntegerVector const& bins, 
-                   std::string const& db_dir, 
-                   std::vector<std::string> const& cells, 
-                   const int& CPG_NUM){
+DataFrame mean_meth(SEXP cgdb, const IntegerVector& idxs, const std::vector<std::string>& cells){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->mean_meth(idxs, cells));
+}
 
-    std::vector<float> bins_full(CPG_NUM+1, 0);    
+////////////////////////////////////////////////////////////////////////
+DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells){
+    std::vector<float> bins_full(m_CPG_NUM+1, 0);    
     
     vsUnpackV(idxs.length(), &as<std::vector<float> >(bins)[0], &bins_full[0], idxs.begin());
     
@@ -70,7 +148,7 @@ DataFrame bin_meth(IntegerVector const& idxs,
         int* cell_idx = NULL;
         float* cell_met = NULL;
         float* cell_cov = NULL;
-        unsigned ncpgs = get_cell_data(cells[i], db_dir, cell_idx, cell_met, cell_cov);
+        unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
         
         if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
 
@@ -89,11 +167,6 @@ DataFrame bin_meth(IntegerVector const& idxs,
             }            
             
         } 
-        
-        unmap_file(cell_met, ncpgs*4);        
-        unmap_file(cell_cov, ncpgs*4);        
-        unmap_file(cell_idx, ncpgs*4);        
-        
     }    
     
     // remove first element (sum of cpgs wihout a bin)
@@ -103,19 +176,22 @@ DataFrame bin_meth(IntegerVector const& idxs,
     std::vector<int> bin_id(max_bin);
     std::iota(bin_id.begin(), bin_id.end(), 1);
 
-    return DataFrame::create(_["bin"] = bin_id, _["cov"] = cov, _["meth"] = meth);    
+    return DataFrame::create(_["bin"] = bin_id, _["cov"] = cov, _["meth"] = meth);
 }
-
 
 ////////////////////////////////////////////////////////////////////////
 // [[Rcpp::export]]
-List bin_meth_per_cell_cpp(IntegerVector const& idxs, 
-                   IntegerVector const& bins, 
-                   std::string const& db_dir, 
-                   std::vector<std::string> const& cells, 
-                   const int& CPG_NUM){
+DataFrame bin_meth(SEXP cgdb, const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->bin_meth(idxs, bins, cells));    
+}
 
-    std::vector<float> bins_full(CPG_NUM+1, 0);    
+////////////////////////////////////////////////////////////////////////
+List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, 
+                   const IntegerVector& bins,                    
+                   const std::vector<std::string>& cells){
+
+    std::vector<float> bins_full(m_CPG_NUM+1, 0);    
     
     vsUnpackV(idxs.length(), &as<std::vector<float> >(bins)[0], &bins_full[0], idxs.begin());
     
@@ -128,7 +204,7 @@ List bin_meth_per_cell_cpp(IntegerVector const& idxs,
         int* cell_idx = NULL;
         float* cell_met = NULL;
         float* cell_cov = NULL;
-        unsigned ncpgs = get_cell_data(cells[i], db_dir, cell_idx, cell_met, cell_cov);
+        unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
    
         if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
 
@@ -146,14 +222,7 @@ List bin_meth_per_cell_cpp(IntegerVector const& idxs,
                 ++meth_j;
             }            
             
-        } else {
-            Rcout << "asfasf" << std::endl;
-        }
-        
-        unmap_file(cell_met, ncpgs*4);        
-        unmap_file(cell_cov, ncpgs*4);        
-        unmap_file(cell_idx, ncpgs*4);        
-        
+        }         
     }    
     
     std::vector<int> bin_id(max_bin);
@@ -167,7 +236,17 @@ List bin_meth_per_cell_cpp(IntegerVector const& idxs,
 }
 
 ////////////////////////////////////////////////////////////////////////
-unsigned get_file_length(std::string const& fname){
+// [[Rcpp::export]]
+List bin_meth_per_cell_cpp(SEXP cgdb, const IntegerVector& idxs, 
+                   const IntegerVector& bins,                    
+                   const std::vector<std::string>& cells){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->bin_meth_per_cell_cpp(idxs, bins, cells));    
+}
+
+
+////////////////////////////////////////////////////////////////////////
+unsigned get_file_length(const std::string& fname){
     struct stat st;
     stat(fname.c_str(), &st);
 
@@ -176,7 +255,7 @@ unsigned get_file_length(std::string const& fname){
 
 
 ////////////////////////////////////////////////////////////////////////
-void* mmap_file(std::string const& fname, unsigned length){
+void* mmap_file(const std::string& fname, unsigned length){
     int fd = open(fname.c_str(), O_RDONLY);
     if (fd < 0) {
         return NULL;
@@ -195,26 +274,6 @@ void unmap_file(void* map, unsigned length){
     }
 }
 
-////////////////////////////////////////////////////////////////////////
-unsigned get_cell_data(std::string const& cell, std::string const& db_dir, int*& cell_idx, float*& cell_met, float*& cell_cov){
-    unsigned point = cell.find(".");
-    std::string fname = db_dir + "/" +  cell.substr(0, point) + "/" + cell.substr(point+1);
-
-    std::string idx_fname = fname + ".idx.bin";
-    std::string met_fname = fname + ".meth.bin";
-    std::string cov_fname = fname + ".cov.bin";
-    unsigned ncpgs = get_file_length(idx_fname) / 4;
-        
-    cell_idx = (int*)mmap_file(idx_fname, ncpgs*4);        
-    cell_met = (float*)mmap_file(met_fname, ncpgs*4);        
-    cell_cov = (float*)mmap_file(cov_fname, ncpgs*4);
-    if (cell_idx == NULL || cell_met == NULL || cell_cov == NULL){
-        Rcout << "yrs" << std::endl;
-    }
-    
-
-    return(ncpgs);
-}
 
 
 

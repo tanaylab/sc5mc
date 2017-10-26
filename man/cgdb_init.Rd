@@ -4,12 +4,14 @@
 \alias{cgdb_init}
 \title{Initialize cgdb database}
 \usage{
-cgdb_init(db_root, intervals = NULL)
+cgdb_init(db_root, intervals = NULL, overwrite = FALSE)
 }
 \arguments{
 \item{db_root}{root directory of the cgdb database}
 
 \item{intervals}{cpg intervals (id NULL 'intervs.global.seq_CG' from the current misha database would be used)}
+
+\item{overwrite}{overwrite existing db}
 }
 \description{
 Initialize cgdb database
