@@ -28,6 +28,12 @@ DataFrame bin_meth(SEXP cgdb, const IntegerVector& idxs, const IntegerVector& bi
     return(ptr->bin_meth(idxs, bins, cells));    
 }
 
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
+List extract_sc_data(SEXP cgdb, const IntegerVector& idxs, const std::vector<std::string>& cells){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->extract(idxs, cells));    
+}
 
 ////////////////////////////////////////////////////////////////////////
 // [[Rcpp::export]]

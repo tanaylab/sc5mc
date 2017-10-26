@@ -9,6 +9,10 @@ bin_meth <- function(cgdb, idxs, bins, cells) {
     .Call('_sc5mc_bin_meth', PACKAGE = 'sc5mc', cgdb, idxs, bins, cells)
 }
 
+extract_sc_data <- function(cgdb, idxs, cells) {
+    .Call('_sc5mc_extract_sc_data', PACKAGE = 'sc5mc', cgdb, idxs, cells)
+}
+
 bin_meth_per_cell_cpp <- function(cgdb, idxs, bins, cells) {
     .Call('_sc5mc_bin_meth_per_cell_cpp', PACKAGE = 'sc5mc', cgdb, idxs, bins, cells)
 }

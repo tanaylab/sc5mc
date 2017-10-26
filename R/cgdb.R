@@ -201,9 +201,10 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL, overwrite=TRUE){
 #'
 #' @param cells cells to extract
 #' @param cpgs cpgs to extract
+#' @param tidy return tidy outout
 #'
 #' @export
-extract.cgdb <- function(.Object, cells=NULL, cpgs=NULL){
+extract.cgdb <- function(.Object, cells=NULL, cpgs=NULL, tidy=FALSE){
     if (is.null(cpgs)){
         cpgs <- .Object@cpgs    
     }   
@@ -211,8 +212,18 @@ extract.cgdb <- function(.Object, cells=NULL, cpgs=NULL){
     if (is.null(cells)){
         cells <- .Object@cells$cell_id
     }
-
-    return(extract_sc_data(.Object, cells, cpgs %>% select(chrom, start, end, id)))  
+    
+    res <- extract_sc_data(.Object@.xptr, cpgs$id, cells)
+    res$cov <- bind_cols(cpgs %>% select(chrom, start, end), res$cov %>% as_tibble() %>% set_names(cells) )
+    res$meth <- bind_cols(cpgs %>% select(chrom, start, end), res$meth %>% as_tibble() %>% set_names(cells) )
+    
+    if (tidy){
+        # in the future - call extract sparse
+        res$cov <- res$cov %>% gather('cell_id', 'cov', -(chrom:end))
+        res$meth <- res$meth %>% gather('cell_id', 'meth', -(chrom:end))
+        res <- res$cov %>% mutate(meth = res$meth$meth) %>% filter(cov > 0) 
+    }
+    return(res)  
 }
 
 #' Summarise data from intervals and cells

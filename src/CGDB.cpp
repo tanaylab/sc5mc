@@ -1,7 +1,6 @@
 #include "CGDB.h"
 using namespace Rcpp;
 
-
 ////////////////////////////////////////////////////////////////////////
 void CGDB::add_cell_data(const std::string& cell){
     unsigned point = cell.find(".");
@@ -156,9 +155,56 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
     return res;     
 }
 
-List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& cells){
+List CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells, const std::vector<std::string>& chrom, const std::vector<int>& start, const std::vector<int>& end){
+
 	List res;
-	res["meth"] = idxs;
+	return res;
+}
+
+List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& cells){
+
+	std::vector<float> all_cov(m_CPG_NUM+1, 0);	
+	std::vector<float> all_meth(m_CPG_NUM+1, 0);
+	std::vector<int> all_idxs = as<std::vector<int> >(idxs);	
+
+	std::vector<std::vector<float> > cov(cells.size(), std::vector<float>(idxs.length(), 0));
+    std::vector<std::vector<float> > meth(cells.size(), std::vector<float>(idxs.length(), 0));
+
+    for (unsigned i=0; i < cells.size(); ++i) {
+        int* cell_idx = NULL;
+        float* cell_met = NULL;
+        float* cell_cov = NULL;
+        unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
+        if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
+        	// scatter cell coverage to all_cov
+        	vsUnpackV(ncpgs, cell_cov, &all_cov[0], cell_idx);
+
+        	// gather cell coverage in idxs to result 2d array cov
+        	vsPackV(idxs.length(), &all_cov[0], &all_idxs[0], &cov[i][0]);
+
+        	// clean all_cov vector
+        	cblas_sscal(all_cov.size(), 0, &all_cov[0], 1);
+        	
+        	// scatter cell methyaltion to all_cov
+        	vsUnpackV(ncpgs, cell_met, &all_meth[0], cell_idx);
+
+        	// gather cell methylation in idxs to result 2d array meth
+        	vsPackV(idxs.length(), &all_meth[0], &all_idxs[0], &meth[i][0]);
+
+        	// clean all_meth vector
+        	cblas_sscal(all_meth.size(), 0, &all_meth[0], 1);        	
+        }
+    }
+
+    Function cbind("cbind");
+    Function do_call("do.call");
+
+    NumericMatrix cov_mat = do_call(cbind, wrap(cov));
+    NumericMatrix meth_mat = do_call(cbind, wrap(meth));
+
+	List res;	
+	res["cov"] = cov_mat;
+	res["meth"] = meth_mat;
 	return res;	
 }
 
