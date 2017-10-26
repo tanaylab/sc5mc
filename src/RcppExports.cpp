@@ -32,6 +32,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// extract_sc_data
+List extract_sc_data(SEXP cgdb, const IntegerVector& idxs, const std::vector<std::string>& cells);
+RcppExport SEXP _sc5mc_extract_sc_data(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP cellsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type cells(cellsSEXP);
+    rcpp_result_gen = Rcpp::wrap(extract_sc_data(cgdb, idxs, cells));
+    return rcpp_result_gen;
+END_RCPP
+}
 // bin_meth_per_cell_cpp
 List bin_meth_per_cell_cpp(SEXP cgdb, const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
 RcppExport SEXP _sc5mc_bin_meth_per_cell_cpp(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP binsSEXP, SEXP cellsSEXP) {
@@ -52,6 +65,7 @@ RcppExport SEXP CGDB__new(SEXP, SEXP);
 static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_mean_meth", (DL_FUNC) &_sc5mc_mean_meth, 3},
     {"_sc5mc_bin_meth", (DL_FUNC) &_sc5mc_bin_meth, 4},
+    {"_sc5mc_extract_sc_data", (DL_FUNC) &_sc5mc_extract_sc_data, 3},
     {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 4},
     {"CGDB__new",                    (DL_FUNC) &CGDB__new,                    2},
     {NULL, NULL, 0}
