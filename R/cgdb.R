@@ -34,8 +34,25 @@ cgdb <- setClass(
         db_root = "character",
         cpgs = "tbl_df",
         cells = "tbl_df",
-        CPG_NUM = "numeric"),
+        CPG_NUM = "numeric",
+        xptr = "externalptr"),
         validity = check_cgdb
+)
+
+setMethod(
+  "initialize",
+  signature = "cgdb",
+  definition =
+    function(.Object, db_root, cpgs, cells, CPG_NUM) {
+        .Object@db_root <- db_root
+        .Object@cpgs <- cpgs
+        .Object@cells <- cells
+        .Object@CPG_NUM <- CPG_NUM
+        .Object@xptr <- .Call("CGDB__new", db_root, CPG_NUM)
+        # .Object@xptr <- CGDB__new(db_root, CPG_NUM)
+
+        return(.Object)
+    }
 )
 
 
@@ -75,12 +92,16 @@ cgdb_save <- function(cgdb){
 #' 
 #' @param db_root root directory of the cgdb database
 #' @param intervals cpg intervals (id NULL 'intervs.global.seq_CG' from the current misha database would be used)
+#' @param overwrite overwrite existing db
 #' 
 #' @export
-cgdb_init <- function(db_root, intervals=NULL){
+cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){
     dir.create(db_root, recursive = TRUE, showWarnings = FALSE)
     dir.create(file.path(db_root, 'data'), recursive = TRUE, showWarnings = FALSE)
     cells <- tibble(cell_id = character(), cell_num = numeric(), plate = character())
+    if (file.exists(glue('{db_root}/cells.csv')) || !overwrite){
+        stop("db exist. Run with overwrite = TRUE to overwrite")
+    }
     fwrite(cells, glue('{db_root}/cells.csv'), sep=',')
 
     if (is.null(intervals)){
@@ -221,7 +242,7 @@ summarise.cgdb <- function(.Object){
 #' @export
 summarise_cpgs <- function(cgdb, cpgs=NULL){        
     cpgs <- cpgs %||% cgdb@cpgs
-    scdata <- mean_meth(cpgs$id, file.path(cgdb@db_root, 'data'), cgdb@cells$cell_id, cgdb@CPG_NUM) %>% as_tibble() %>% rename(cell_id = cell)    
+    scdata <- mean_meth(cgdb@xptr, cpgs$id, cgdb@cells$cell_id) %>% as_tibble() %>% rename(cell_id = cell)    
     return(scdata)
 }
 
@@ -230,7 +251,7 @@ summarise_cpgs <- function(cgdb, cpgs=NULL){
 #' @export
 summarise_cells <- function(cgdb, cells=NULL){
     cells <- cells %||% cgdb@cells$cell_id
-    scdata <- mean_meth_per_cpg(idxs=cgdb@cpgs$id, db_dir=file.path(cgdb@db_root, 'data'), cells=cells, CPG_NUM=cgdb@CPG_NUM)    
+    scdata <- mean_meth_per_cpg(cgdb, idxs=cgdb@cpgs$id, cells=cells)    
     scdata <- cgdb@cpgs %>% select(-id) %>% bind_cols(scdata) %>% as_tibble() 
     return(scdata)    
 }
@@ -238,7 +259,7 @@ summarise_cells <- function(cgdb, cells=NULL){
 summarise_by_cpg_groups <- function(cgdb){        
     bins <- cgdb@cpgs %>% group_indices()    
     
-    res <- bin_meth_per_cell(cgdb@cpgs$id, bins, file.path(cgdb@db_root, 'data'), cgdb@cells$cell_id, cgdb@CPG_NUM)     
+    res <- bin_meth_per_cell(cgdb, cgdb@cpgs$id, bins, cgdb@cells$cell_id)     
 
     cpgs <- cgdb@cpgs
     cpgs$bin <- bins
@@ -249,7 +270,7 @@ summarise_by_cpg_groups <- function(cgdb){
 summarise_by_both_groups <- function(cgdb){
     bins <- cgdb@cpgs %>% group_indices()    
 
-    res <- cgdb@cells %>% do(bin_meth(cgdb@cpgs$id, bins, file.path(cgdb@db_root, 'data'), .$cell_id, cgdb@CPG_NUM)) %>% ungroup()
+    res <- cgdb@cells %>% do(bin_meth(cgdb@xptr, cgdb@cpgs$id, bins, .$cell_id)) %>% ungroup()
 
     cpgs <- cgdb@cpgs
     cpgs$bin <- bins
@@ -259,15 +280,15 @@ summarise_by_both_groups <- function(cgdb){
 }
 
 # CPP helper functions
-mean_meth_per_cpg <- function(idxs, db_dir, cells, CPG_NUM){
+mean_meth_per_cpg <- function(cgdb, idxs, cells){
     bins <- 1:length(idxs)        
-    res <- bin_meth(idxs, bins, db_dir, cells, CPG_NUM)
+    res <- bin_meth(cgdb@xptr, idxs, bins, cells)
     res <- res %>% mutate(id = idxs) %>% select(id, cov, meth)
     return(res)
 }
 
-bin_meth_per_cell <- function(idxs, bins, db_dir, cells, CPG_NUM){    
-    res <- bin_meth_per_cell_cpp(idxs, bins, db_dir, cells, CPG_NUM)
+bin_meth_per_cell <- function(cgdb, idxs, bins, cells){    
+    res <- bin_meth_per_cell_cpp(cgdb@xptr, idxs, bins, cells)
 
     res <- purrr::map2(res[1:2], names(res[1:2]), ~ 
         as.data.frame(.x[, -1], row.names=cells) %>% 
