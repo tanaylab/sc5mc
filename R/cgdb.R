@@ -162,7 +162,7 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL, overwrite=TRUE){
         left_join(tibble(cell_id = colnames(smat))) %>% 
         select(-one_of('plate')) %>% 
         separate(cell_id, c('plate', 'cell_num'), sep='\\.', remove=FALSE) %>%          
-        mutate(cell_num = as.numeric(cell_num)) %>% 
+        # mutate(cell_num = as.numeric(cell_num)) %>% 
         arrange(cell_num)
 
     stopifnot(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))    
@@ -195,7 +195,9 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL, overwrite=TRUE){
     return(cgdb)
 }
     
-
+extract <- function(.Object, cells=NULL, cpgs=NULL, tidy=FALSE) {
+    UseMethod("extract")
+}
 
 #' Extract data from intervals and cells
 #'

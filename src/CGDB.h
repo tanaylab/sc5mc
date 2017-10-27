@@ -28,6 +28,10 @@ class CGDB {
 
         unsigned get_cell_data(std::string const& cell, int*& cell_idx, float*& cell_met, float*& cell_cov);
 
+        bool valid_indexes(const IntegerVector& idxs){
+        	return (min(idxs) > 0 && max(idxs) <= m_CPG_NUM );
+        }
+
     public:
         CGDB(const std::string& db_dir, const int& CPG_NUM): m_db_dir(db_dir), m_CPG_NUM(CPG_NUM){
         }

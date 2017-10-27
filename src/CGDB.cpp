@@ -35,6 +35,10 @@ unsigned CGDB::get_cell_data(const std::string& cell, int*& cell_idx, float*& ce
 
 ////////////////////////////////////////////////////////////////////////
 DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::string>& cells){
+	if (!valid_indexes(idxs)){
+		stop("some indexes are out of scope");
+	}
+
     std::vector<float> mask(m_CPG_NUM+1, 0);
     std::vector<float> ones(m_CPG_NUM+1, 1);    
 
@@ -65,6 +69,14 @@ DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::stri
 
 ////////////////////////////////////////////////////////////////////////
 DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells){
+	if (!valid_indexes(idxs)){
+		stop("some indexes are out of scope");
+	}
+
+	if (idxs.length() != bins.length()){
+		stop("indexes and bins have different lengths");
+	}
+
     std::vector<float> bins_full(m_CPG_NUM+1, 0);    
     
     vsUnpackV(idxs.length(), &as<std::vector<float> >(bins)[0], &bins_full[0], idxs.begin());
@@ -110,6 +122,15 @@ DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, c
 
 ////////////////////////////////////////////////////////////////////////
 List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells){
+
+	if (!valid_indexes(idxs)){
+		stop("some indexes are out of scope");
+	}
+
+	if (idxs.length() != bins.length()){
+		stop("indexes and bins have different lengths");
+	}
+
 
     std::vector<float> bins_full(m_CPG_NUM+1, 0);    
     
@@ -157,11 +178,18 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
 
 List CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells, const std::vector<std::string>& chrom, const std::vector<int>& start, const std::vector<int>& end){
 
+	if (!valid_indexes(idxs)){
+		stop("some indexes are out of scope");
+	}
+
 	List res;
 	return res;
 }
 
 List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& cells){
+	if (!valid_indexes(idxs)){
+		stop("some indexes are out of scope");
+	}
 
 	std::vector<float> all_cov(m_CPG_NUM+1, 0);	
 	std::vector<float> all_meth(m_CPG_NUM+1, 0);
