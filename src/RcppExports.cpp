@@ -59,6 +59,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// freemem
+void freemem(SEXP cgdb);
+RcppExport SEXP _sc5mc_freemem(SEXP cgdbSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    freemem(cgdb);
+    return R_NilValue;
+END_RCPP
+}
 
 RcppExport SEXP CGDB__new(SEXP, SEXP);
 
@@ -67,6 +77,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_bin_meth", (DL_FUNC) &_sc5mc_bin_meth, 4},
     {"_sc5mc_extract_sc_data", (DL_FUNC) &_sc5mc_extract_sc_data, 3},
     {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 4},
+    {"_sc5mc_freemem", (DL_FUNC) &_sc5mc_freemem, 1},
     {"CGDB__new",                    (DL_FUNC) &CGDB__new,                    2},
     {NULL, NULL, 0}
 };

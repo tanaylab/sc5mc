@@ -17,3 +17,7 @@ bin_meth_per_cell_cpp <- function(cgdb, idxs, bins, cells) {
     .Call('_sc5mc_bin_meth_per_cell_cpp', PACKAGE = 'sc5mc', cgdb, idxs, bins, cells)
 }
 
+freemem <- function(cgdb) {
+    invisible(.Call('_sc5mc_freemem', PACKAGE = 'sc5mc', cgdb))
+}
+

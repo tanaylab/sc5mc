@@ -51,13 +51,12 @@ setMethod(
   "initialize",
   signature = "cgdb",
   definition =
-    function(.Object, db_root, cpgs, cells, CPG_NUM) {
-        .Object@db_root <- db_root
+    function(.Object, db_root, cpgs, cells, CPG_NUM) {        
+        .Object@db_root <- path.expand(db_root)
         .Object@cpgs <- cpgs
         .Object@cells <- cells
         .Object@CPG_NUM <- CPG_NUM
-        .Object@.xptr <- .Call("CGDB__new", db_root, CPG_NUM)
-        # .Object@.xptr <- CGDB__new(db_root, CPG_NUM)
+        .Object@.xptr <- .Call("CGDB__new", .Object@db_root, CPG_NUM)        
 
         return(.Object)
     }
@@ -91,8 +90,10 @@ cgdb_load <- function(db_root){
 #' 
 #' @export
 cgdb_save <- function(cgdb){
+    l <- flock::lock(glue('{cgdb@db_root}/.cells_lock'))
     fwrite(cgdb@cells, glue('{cgdb@db_root}/cells.csv'), sep=',')   
     fwrite(cgdb@cpgs, glue('{cgdb@db_root}/cpgs.csv'), sep=',') 
+    flock::unlock(l)
     return(cgdb)
 }
 
@@ -103,13 +104,14 @@ cgdb_save <- function(cgdb){
 #' @param overwrite overwrite existing db
 #' 
 #' @export
-cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){
+cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){    
     dir.create(db_root, recursive = TRUE, showWarnings = FALSE)
     dir.create(file.path(db_root, 'data'), recursive = TRUE, showWarnings = FALSE)
     cells <- tibble(cell_id = character(), cell_num = numeric(), plate = character())
     if (file.exists(glue('{db_root}/cells.csv')) || !overwrite){
         stop("db exist. Run with overwrite = TRUE to overwrite")
     }
+    l <- flock::lock(glue('{cgdb@db_root}/.cells_lock'))
     fwrite(cells, glue('{db_root}/cells.csv'), sep=',')
 
     if (is.null(intervals)){
@@ -120,7 +122,7 @@ cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){
     
     cpgs <- intervals %>% arrange(chrom, start, end) %>% mutate(id = 1:n()) %>% as_tibble()
     fwrite(cpgs, glue('{db_root}/cpgs.csv'), sep=',')
-
+    flock::unlock(l)
     cgdb <- new('cgdb', db_root=db_root, cpgs=cpgs, cells=cells, CPG_NUM=nrow(cpgs))
     return(cgdb)
 }
@@ -129,9 +131,45 @@ cgdb_update_cells <- function(cgdb, cells, append=FALSE){
     if (append){
         cells <- bind_rows(cgdb@cells %>% filter(!(cell_id %in% cells$cell_id)), cells)
     }
+    l <- flock::lock(glue('{cgdb@db_root}/.cells_lock'))
     fwrite(cells, glue('{cgdb@db_root}/cells.csv'), sep=',')    
+    flock::unlock(l)
     cgdb@cells <- cells
     return(cgdb)
+}
+
+#' Remove plate from cgdb#' 
+#' 
+#' @param plate_name name of the plate
+#' @param force force remove (no user prompt)
+#' 
+#' @export
+cgdb_remove_plate <- function(cgdb, plate_name, force=FALSE){
+    response <- readline(glue('Are you sure you want to remove {plate_name} and all of it\'s cells (Y/N)?'))
+    if (response == 'Y' || force){
+        cells <- cgdb@cells %>% filter(plate == plate_name) %>% pull(cell_id)
+        walk(cells, ~ cgdb_remove_cell(cgdb, .x, force=TRUE))  
+        system(glue('rmdir {file.path(cgdb@db_root, "data", plate_name)}'))
+        cgdb <- cgdb_update_cells(cgdb, cgdb@cells %>% filter(!(cell_id %in% cells)), append=FALSE)
+    }    
+    
+    return(cgdb)    
+}
+
+cgdb_remove_cell <- function(cgdb, cell_id, force=FALSE){
+    if (!force){
+        response <- readline(glue('Are you sure you want to remove {cell_id} (Y/N)?'))    
+    } else {
+        response <- 'Y'
+    }
+    
+    if (response == 'Y'){
+        x <- stringr::str_split(cell_id, '\\.')[[1]]
+        file_pref <- file.path(cgdb@db_root, 'data', x[1], x[2])
+        file.remove(glue('{file_pref}.idx.bin'))
+        file.remove(glue('{file_pref}.cov.bin'))
+        file.remove(glue('{file_pref}.meth.bin'))                
+    }
 }
 
 #' Add sc5mc data of a plate from smat object
@@ -143,6 +181,9 @@ cgdb_update_cells <- function(cgdb, cells, append=FALSE){
 #' 
 #' @export
 cgdb_add_plate <- function(cgdb, smat, plate_name=NULL, overwrite=TRUE){
+    if (is.character(smat)){
+        smat <- smat.load(smat)
+    }
     if (is.null(plate_name)){
         if (is.null(smat$name)){
             stop('Please provide a plate name') 
@@ -152,11 +193,11 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL, overwrite=TRUE){
     }
 
     plate_fn <- glue('{cgdb@db_root}/{plate_name}')
-    if (!(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))){  
-        print('problem')      
-        browser()
-        smat <- smat.add_intervals(smat, cgdb@cpgs %>% select(chrom, start, end))   
-    }
+    # if (!(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))){                  
+    #     cell_md <- smat$cell_metadata
+    #     smatc<- smat.add_intervals(smat, cgdb@cpgs %>% select(chrom, start, end))   
+    #     smat$cell_metadata <- cell_md
+    # }    
 
     cells <- smat$cell_metadata %>% 
         left_join(tibble(cell_id = colnames(smat))) %>% 
@@ -165,12 +206,14 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL, overwrite=TRUE){
         # mutate(cell_num = as.numeric(cell_num)) %>% 
         arrange(cell_num)
 
-    stopifnot(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))    
+    # stopifnot(all(smat$intervs$chrom == cgdb@cpgs$chrom) && all(smat$intervs$start == cgdb@cpgs$start) && all(smat$intervs$end == cgdb@cpgs$end))    
+
+    smat_df <- smat.to_df(smat) %>% select(-id) %>% inner_join(cgdb@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id))    
 
     plyr::alply(cells, 1, function(x) {            
             cell <- x$cell_id
             plate <- x$plate
-            cell_num <- x$cell_num                        
+            cell_num <- x$cell_num
 
             dirname <- file.path(cgdb@db_root, 'data', x$plate)
             fname <- file.path(dirname, x$cell_num)
@@ -178,19 +221,26 @@ cgdb_add_plate <- function(cgdb, smat, plate_name=NULL, overwrite=TRUE){
             if (!file.exists(paste0(fname, '.idx.bin')) || overwrite){
                 dir.create(dirname, showWarnings=FALSE, recursive=TRUE)
 
-                cov_vec <- smat$cov[, x$cell_id]
-                met_vec <- smat$meth[, x$cell_id]
-                idxs <- which(cov_vec > 0)
+                # cov_vec <- smat$cov[, x$cell_id]
+                # met_vec <- smat$meth[, x$cell_id]
+                # idxs <- which(cov_vec > 0)
+
+                d <- smat_df %>% filter(cell == x$cell_id)                
+                cov_vec <- d$cov
+                met_vec <- d$meth
+                idxs <- d$id
 
                 writeBin(idxs, paste0(fname, '.idx.bin'), size=4)
-                writeBin(met_vec[idxs], paste0(fname, '.meth.bin'), size=4)
-                writeBin(cov_vec[idxs], paste0(fname, '.cov.bin'), size=4)
+                # writeBin(met_vec[idxs], paste0(fname, '.meth.bin'), size=4)
+                # writeBin(cov_vec[idxs], paste0(fname, '.cov.bin'), size=4)
+                writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
+                writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)
                 message(glue('created {cell}'))    
             } 
             
-        }, .parallel=TRUE)
+        }, .parallel=FALSE)
     
-
+    cgdb@cells <- fread(glue('{cgdb@db_root}/cells.csv')) %>% as_tibble()
     cgdb <- cgdb_update_cells(cgdb, cells, append=TRUE)
     return(cgdb)
 }
@@ -231,7 +281,7 @@ extract.cgdb <- function(.Object, cells=NULL, cpgs=NULL, tidy=FALSE){
 #' Summarise data from intervals and cells
 #'
 #' @export
-summarise.cgdb <- function(.Object){
+summarise.cgdb <- function(.Object, tidy=TRUE){
     has_cell_groups <- is_grouped_df(.Object@cells)
     has_cpg_groups <- is_grouped_df(.Object@cpgs)
 
@@ -242,7 +292,7 @@ summarise.cgdb <- function(.Object){
 
     # summary of groups of CpGs per cell
     if (!has_cell_groups && has_cpg_groups){   
-        res <- summarise_by_cpg_groups(.Object)
+        res <- summarise_by_cpg_groups(.Object, tidy=tidy)
     }
 
     # summary of groups of CpGs and cells
@@ -256,9 +306,13 @@ summarise.cgdb <- function(.Object){
         res <- summarise_cpgs(.Object, .Object@cpgs) 
     }        
 
-    res <- res %>% ungroup()
+    if (is.data.frame(res)){
+        res <- res %>% ungroup()  
+        res <- as_tibble(res)  
+    }
+    
 
-    return(as_tibble(res))
+    return(res)
 }
 
 
@@ -281,14 +335,20 @@ summarise_cells <- function(cgdb, cells=NULL){
     return(scdata)    
 }
 
-summarise_by_cpg_groups <- function(cgdb){        
+summarise_by_cpg_groups <- function(cgdb, tidy=TRUE){        
     bins <- cgdb@cpgs %>% group_indices()    
     
-    res <- bin_meth_per_cell(cgdb, cgdb@cpgs$id, bins, cgdb@cells$cell_id)     
-
+    res <- bin_meth_per_cell(cgdb, cgdb@cpgs$id, bins, cgdb@cells$cell_id, tidy=tidy)     
+    
     cpgs <- cgdb@cpgs
     cpgs$bin <- bins
-    res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% select(cell, everything()) %>% ungroup()
+    if (tidy){
+        res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% select(cell, everything()) %>% ungroup()    
+    } else {
+        res$cov <-  cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res$cov, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()
+        res$meth <-  cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res$meth, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()        
+    }
+    
     return(res)  
 }
 
@@ -312,17 +372,25 @@ mean_meth_per_cpg <- function(cgdb, idxs, cells){
     return(res)
 }
 
-bin_meth_per_cell <- function(cgdb, idxs, bins, cells){    
+bin_meth_per_cell <- function(cgdb, idxs, bins, cells, tidy=TRUE){    
     res <- bin_meth_per_cell_cpp(cgdb@.xptr, idxs, bins, cells)
-
-    res <- purrr::map2(res[1:2], names(res[1:2]), ~ 
-        as.data.frame(.x[, -1], row.names=cells) %>% 
-        rownames_to_column() %>% 
-        set_names(c('cell', res$bin)) %>% 
-        gather('bin', 'var', -cell) %>% 
-        set_names(c('cell', 'bin', .y)) %>%
-        as_tibble())
-    res <- res$cov %>% mutate(meth = res$meth$meth, bin = as.numeric(bin))
+    res$cov <- res$cov[-1, ]
+    res$meth <- res$meth[-1, ]
+    
+    if (tidy){
+        res <- purrr::map2(res[1:2], names(res[1:2]), ~ 
+            as.data.frame(t(.x), row.names=cells) %>% 
+            rownames_to_column() %>% 
+            set_names(c('cell', res$bin)) %>% 
+            gather('bin', 'var', -cell) %>% 
+            set_names(c('cell', 'bin', .y)) %>%
+            as_tibble())
+        res <- res$cov %>% mutate(meth = res$meth$meth, bin = as.numeric(bin))    
+    } else {
+        res$cov <- as.data.frame(res$cov) %>% set_names(cells) %>% mutate(bin = res$bin) %>% select(bin, everything())
+        res$meth <- as.data.frame(res$meth) %>% set_names(cells) %>% mutate(bin = res$bin) %>% select(bin, everything())        
+    }
+    
     return(res)    
 }
 
@@ -421,3 +489,18 @@ slice_cells <- function(cgdb, ...){
     cgdb@cells <- cgdb@cells %>% slice(...)    
     return(cgdb)
 }
+
+# select
+#' @export
+select_cpgs <- function(cgdb, ...){
+    cgdb@cpgs <- cgdb@cpgs %>% select(...)    
+    return(cgdb)
+}
+
+
+#' @export
+select_cells <- function(cgdb, ...){
+    cgdb@cells <- cgdb@cells %>% select(...)    
+    return(cgdb)
+}
+
