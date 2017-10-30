@@ -91,7 +91,7 @@ sc5mc.reads_per_cpg <- function(smat){
 	stats <- smat$stats
 	if (!has_name(stats, 'cpg_num')){
 		cell_mars <- smat.cell_marginals(smat) %>% rename(cpg_num=cov)
-		if (has_name(stats, 'lib')){
+		if (has_name(stats, 'lib')  && !has_name(stats, 'cell_id')){
 			stats <- stats %>% rename(cell_id = lib)
 		}
 		stats <- stats %>% left_join(cell_mars, by='cell_id')
@@ -272,7 +272,7 @@ sc5mc.ontar_reads <- function(smat, intervals=NULL, return_orig=TRUE){
 	
 	if (!is.null(intervals)){
 		reads <- smat$tidy_cpgs %>% distinct(read_id, num, .keep_all=T) %>% filter(end != '-')
-		tcpgs <- .gpatterns.filter_ontar_reads(reads, intervals, return_orig=return_orig)		
+		tcpgs <- gpatterns:::.gpatterns.filter_ontar_reads(reads, intervals, return_orig=return_orig)		
 	} else {
 		tcpgs <- smat$tidy_cpgs
 	}

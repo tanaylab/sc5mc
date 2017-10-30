@@ -36,17 +36,24 @@ class CGDB {
         CGDB(const std::string& db_dir, const int& CPG_NUM): m_db_dir(db_dir), m_CPG_NUM(CPG_NUM){
         }
 
-        ~CGDB(){
-            // unmap all files
+        void freemem(){
+        	// unmap all files
             for (auto& n : m_cell_idx){                
                 unmap_file(n.second, m_ncpgs[n.first]);
+                // m_cell_idx.erase(n.first);
             }
             for (auto& n : m_cell_cov){                
                 unmap_file(n.second, m_ncpgs[n.first]);
+                // m_cell_cov.erase(n.first);
             }
             for (auto& n : m_cell_met){                
                 unmap_file(n.second, m_ncpgs[n.first]);
-            }            
+                // m_cell_met.erase(n.first);
+            }     
+        }
+
+        ~CGDB(){
+       		freemem();
         }
 
         DataFrame mean_meth(const IntegerVector& idxs, const std::vector<std::string>& cells);

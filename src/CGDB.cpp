@@ -1,4 +1,5 @@
 #include "CGDB.h"
+#include "ProgressReporter.h"
 using namespace Rcpp;
 
 ////////////////////////////////////////////////////////////////////////
@@ -15,6 +16,7 @@ void CGDB::add_cell_data(const std::string& cell){
     m_cell_met[cell] = (float*)mmap_file(met_fname, ncpgs*4);        
     m_cell_cov[cell] = (float*)mmap_file(cov_fname, ncpgs*4);
     m_ncpgs[cell] = ncpgs;
+    // Rcout << "added "  << cell << std::endl;
 }
 
 
@@ -47,11 +49,16 @@ DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::stri
     NumericVector meth(cells.size());
     NumericVector cov(cells.size());
 
+    ProgressReporter progress;
+    progress.init(cells.size(), 1);
+
     for (unsigned i=0; i<cells.size(); ++i) {
         int* cell_idx = NULL;
         float* cell_met = NULL;
         float* cell_cov = NULL;
         unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
+
+        
 
         if ((cell_idx == NULL) || (cell_met == NULL) || (cell_cov == NULL) ) {
             meth[i] = NA_REAL;
@@ -61,7 +68,9 @@ DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::stri
             meth[i] = cblas_sdoti(ncpgs, cell_met, cell_idx, &mask[0]);            
             cov[i] = cblas_sdoti(ncpgs, cell_cov, cell_idx, &mask[0]);
         }
+        progress.report(1);
     }    
+    progress.report_last();
 
     return DataFrame::create(_["cell"]=cells, _["cov"]=cov, _["meth"]=meth);
 
@@ -84,6 +93,9 @@ DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, c
     unsigned int max_bin = *std::max_element(bins.begin(), bins.end());  
     NumericVector meth(max_bin + 1);
     NumericVector cov(max_bin + 1);
+
+    ProgressReporter progress;
+    progress.init(cells.size(), 1);
 
     for (unsigned i=0; i<cells.size(); ++i) {
         int* cell_idx = NULL;
@@ -108,7 +120,9 @@ DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, c
             }            
             
         } 
+        progress.report(1);
     }    
+    progress.report_last();
     
     // remove first element (sum of cpgs wihout a bin)
     cov.erase(0);
@@ -138,8 +152,11 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
     
     unsigned int max_bin = *std::max_element(bins.begin(), bins.end());  
 
-    NumericMatrix meth(cells.size(), max_bin + 1);
-    NumericMatrix cov(cells.size(), max_bin + 1);
+    NumericMatrix meth(max_bin + 1, cells.size());
+    NumericMatrix cov(max_bin + 1, cells.size());
+
+    ProgressReporter progress;
+    progress.init(cells.size(), 1);
 
     for (unsigned i=0; i<cells.size(); ++i) {
         int* cell_idx = NULL;
@@ -157,14 +174,16 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
             float* cov_j = cell_cov;
             float* meth_j = cell_met;
             for (auto & j : cell_bins){
-                cov(i, j) += *(cov_j);
-                meth(i, j) += *(meth_j);
+                cov(j, i) += *(cov_j);
+                meth(j, i) += *(meth_j);
                 ++cov_j;
                 ++meth_j;
             }            
             
-        }         
-    }    
+        }
+        progress.report(1);         
+    } 
+    progress.report_last();   
     
     std::vector<int> bin_id(max_bin);
     std::iota(bin_id.begin(), bin_id.end(), 1);
@@ -198,6 +217,9 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
 	std::vector<std::vector<float> > cov(cells.size(), std::vector<float>(idxs.length(), 0));
     std::vector<std::vector<float> > meth(cells.size(), std::vector<float>(idxs.length(), 0));
 
+    ProgressReporter progress;
+    progress.init(cells.size(), 1);
+
     for (unsigned i=0; i < cells.size(); ++i) {
         int* cell_idx = NULL;
         float* cell_met = NULL;
@@ -222,7 +244,9 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
         	// clean all_meth vector
         	cblas_sscal(all_meth.size(), 0, &all_meth[0], 1);        	
         }
+        progress.report(1);
     }
+    progress.report_last();
 
     Function cbind("cbind");
     Function do_call("do.call");

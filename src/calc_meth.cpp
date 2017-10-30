@@ -42,6 +42,11 @@ List bin_meth_per_cell_cpp(SEXP cgdb, const IntegerVector& idxs, const IntegerVe
     return(ptr->bin_meth_per_cell_cpp(idxs, bins, cells));    
 }
 
-
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
+void freemem(SEXP cgdb){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->freemem());
+}
 
 

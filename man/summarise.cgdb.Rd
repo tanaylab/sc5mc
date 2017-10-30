@@ -4,7 +4,7 @@
 \alias{summarise.cgdb}
 \title{Summarise data from intervals and cells}
 \usage{
-\method{summarise}{cgdb}(.Object)
+\method{summarise}{cgdb}(.Object, tidy = TRUE)
 }
 \description{
 Summarise data from intervals and cells

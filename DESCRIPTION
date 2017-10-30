@@ -26,6 +26,7 @@ Imports:
 	glue,
 	memoise,
 	yaml,
+	flock,
     Rcpp
 Remotes: bitbucket::tanaylab/tglkmeans@default
 License: GPL
