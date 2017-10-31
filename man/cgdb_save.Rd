@@ -2,13 +2,17 @@
 % Please edit documentation in R/cgdb.R
 \name{cgdb_save}
 \alias{cgdb_save}
-\title{Write cgdb database to disk}
+\title{Write cgdb to disk}
 \usage{
-cgdb_save(cgdb)
+cgdb_save(db, path = NULL, force = FALSE)
 }
 \arguments{
-\item{cgdb}{cgdb object}
+\item{db}{cgdb object}
+
+\item{path}{path of the cgdb view}
+
+\item{force}{force overwrite}
 }
 \description{
-Write cgdb database to disk
+Write cgdb to disk
 }

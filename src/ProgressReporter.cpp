@@ -49,13 +49,10 @@ void ProgressReporter::report(uint64_t delta_steps_done)
 
 			if (progress != m_last_progress_reported) {
                 if (progress == 100)
-                	Rcout << progress << "%";
-                    // Rprintf("%d%%", progress);
+                	Rcout << progress << "%";                    
                 else
-                	Rcout << progress << "%...";
-                    // Rprintf("%d%%...", progress);
-            } else
-				// Rprintf(".");
+                	Rcout << progress << "%...";                    
+            } else				
             	Rcout << ".";
 			m_last_progress_reported = progress;
 			m_numsteps_from_last_report = 0;
@@ -68,11 +65,9 @@ void ProgressReporter::report(uint64_t delta_steps_done)
 void ProgressReporter::report_last()
 {
 	if (m_last_progress_reported >= 0) {
-		if (m_last_progress_reported != 100)
-			// Rprintf("100%%\n");
+		if (m_last_progress_reported != 100)			
 			Rcout << "100%" << std::endl;
-		else
-			// Rprintf("\n");
+		else			
 			Rcout << std::endl;
 	}
 }
