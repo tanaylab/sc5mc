@@ -39,17 +39,19 @@ class CGDB {
         void freemem(){
         	// unmap all files
             for (auto& n : m_cell_idx){                
-                unmap_file(n.second, m_ncpgs[n.first]);
-                // m_cell_idx.erase(n.first);
+                unmap_file(n.second, m_ncpgs[n.first]);                
             }
+            m_cell_idx.clear();
+
             for (auto& n : m_cell_cov){                
-                unmap_file(n.second, m_ncpgs[n.first]);
-                // m_cell_cov.erase(n.first);
+                unmap_file(n.second, m_ncpgs[n.first]);                
             }
+            m_cell_cov.clear();
+
             for (auto& n : m_cell_met){                
-                unmap_file(n.second, m_ncpgs[n.first]);
-                // m_cell_met.erase(n.first);
+                unmap_file(n.second, m_ncpgs[n.first]);                
             }     
+            m_cell_met.clear();
         }
 
         ~CGDB(){
@@ -61,6 +63,8 @@ class CGDB {
         List bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
         List extract(const IntegerVector& idxs, const std::vector<std::string>& cells);
         List extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells, const std::vector<std::string>& chrom, const std::vector<int>& start, const std::vector<int>& end);
+
+        std::vector<std::string> list_open_cells();
 };
 
 

@@ -49,4 +49,11 @@ void freemem_cpp(SEXP cgdb){
     return(ptr->freemem());
 }
 
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
+std::vector<std::string> list_open_cells(SEXP cgdb){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->list_open_cells());   
+}
+
 

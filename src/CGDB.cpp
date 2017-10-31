@@ -194,6 +194,7 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
     return res;     
 }
 
+////////////////////////////////////////////////////////////////////////
 List CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells, const std::vector<std::string>& chrom, const std::vector<int>& start, const std::vector<int>& end){
 
 	if (!valid_indexes(idxs)){
@@ -204,6 +205,7 @@ List CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std::stri
 	return res;
 }
 
+////////////////////////////////////////////////////////////////////////
 List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& cells){
 	if (!valid_indexes(idxs)){
 		stop("some indexes are out of scope");
@@ -260,6 +262,19 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
 }
 
 ////////////////////////////////////////////////////////////////////////
+std::vector<std::string> CGDB::list_open_cells(){
+	std::vector<std::string> cells;
+	cells.reserve(m_cell_idx.size());	
+
+	for(auto kv : m_cell_idx) {
+		if (kv.second != NULL){
+			cells.push_back(kv.first);    		
+		}    	
+	} 
+	return cells;
+}
+
+////////////////////////////////////////////////////////////////////////
 unsigned get_file_length(const std::string& fname){
     struct stat st;
     stat(fname.c_str(), &st);
@@ -284,9 +299,10 @@ void* mmap_file(const std::string& fname, unsigned length){
 void unmap_file(void* map, unsigned length){
     if (map != NULL) {
         munmap(map, length);
-        // map = NULL;
+        map = NULL;
     }
 }
+
 
 // vsUnpackV( n, a, y, iy );
 // n - Specifies the number of elements to be calculated.

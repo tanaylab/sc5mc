@@ -21,3 +21,7 @@ freemem_cpp <- function(cgdb) {
     invisible(.Call('_sc5mc_freemem_cpp', PACKAGE = 'sc5mc', cgdb))
 }
 
+list_open_cells <- function(cgdb) {
+    .Call('_sc5mc_list_open_cells', PACKAGE = 'sc5mc', cgdb)
+}
+
