@@ -73,7 +73,6 @@ DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::stri
     progress.report_last();
 
     return DataFrame::create(_["cell"]=cells, _["cov"]=cov, _["meth"]=meth);
-
 }
 
 ////////////////////////////////////////////////////////////////////////

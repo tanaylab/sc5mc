@@ -4,7 +4,7 @@
 \alias{summarise_cpgs}
 \title{Summary of CpGs per cell}
 \usage{
-summarise_cpgs(cgdb, cpgs = NULL)
+summarise_cpgs(db, cpgs = NULL)
 }
 \description{
 Summary of CpGs per cell

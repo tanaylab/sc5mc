@@ -4,10 +4,10 @@
 \alias{cgdb_add_plate}
 \title{Add sc5mc data of a plate from smat object}
 \usage{
-cgdb_add_plate(cgdb, smat, plate_name = NULL, overwrite = TRUE)
+cgdb_add_plate(db, smat, plate_name = NULL, overwrite = TRUE)
 }
 \arguments{
-\item{cgdb}{cgdb object}
+\item{db}{cgdb object}
 
 \item{smat}{smat object}
 
