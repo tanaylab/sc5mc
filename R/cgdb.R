@@ -605,3 +605,20 @@ select_cells <- function(db, ...){
     return(db)
 }
 
+setMethod("show", 
+          "cgdb", 
+          function(object){
+            cgdb_info(object)
+          }
+)
+
+cgdb_info <- function(db){
+    ncells <- comify(nrow(db@cells))
+    ncpgs <- comify(nrow(db@cpgs))
+    message(glue('cgdb object\n{ncpgs} CpGs X {ncells} cells'))    
+    message(glue('--- root: {db@db_root}'))
+    message('\n--- CpGs:')
+    print(db@cpgs)
+    message('\n--- cells:')
+    print(db@cells)
+}

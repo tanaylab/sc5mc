@@ -69,6 +69,17 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// list_open_cells
+std::vector<std::string> list_open_cells(SEXP cgdb);
+RcppExport SEXP _sc5mc_list_open_cells(SEXP cgdbSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    rcpp_result_gen = Rcpp::wrap(list_open_cells(cgdb));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 RcppExport SEXP CGDB__new(SEXP, SEXP);
 
@@ -78,6 +89,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_extract_sc_data", (DL_FUNC) &_sc5mc_extract_sc_data, 3},
     {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 4},
     {"_sc5mc_freemem_cpp", (DL_FUNC) &_sc5mc_freemem_cpp, 1},
+    {"_sc5mc_list_open_cells", (DL_FUNC) &_sc5mc_list_open_cells, 1},
     {"CGDB__new",                    (DL_FUNC) &CGDB__new,                    2},
     {NULL, NULL, 0}
 };
