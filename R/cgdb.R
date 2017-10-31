@@ -286,6 +286,11 @@ cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE){
     db <- cgdb_update_cells(db, cells, append=TRUE)
     return(db)
 }
+
+#' @export
+freemem <- function(db){
+    freemem_cpp(db@.xptr)
+}
     
 extract <- function(.Object, cells=NULL, cpgs=NULL, tidy=FALSE) {
     UseMethod("extract")
