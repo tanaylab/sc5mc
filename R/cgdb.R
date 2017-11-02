@@ -390,7 +390,7 @@ summarise_by_cpg_groups <- function(db, tidy=TRUE){
     cpgs <- db@cpgs
     cpgs$bin <- bins
     if (tidy){
-        res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% select(cell, everything()) %>% ungroup()    
+        res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% select(cell, everything()) %>% ungroup() %>% rename(cell_id = cell)   
     } else {
         res$cov <-  cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res$cov, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()
         res$meth <-  cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res$meth, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()        
@@ -605,6 +605,33 @@ select_cells <- function(db, ...){
     return(db)
 }
 
+# left_join
+#' @export
+left_join_cpgs <- function(db, ...){
+    db@cpgs <- db@cpgs %>% left_join(...)    
+    return(db)
+}
+
+#' @export
+left_join_cells <- function(db, ...){
+    db@cells <- db@cells %>% left_join(...)    
+    return(db)
+}
+
+# other functions
+#' @export
+call_cells <- function(db, func, ...){
+    db@cells <- db@cells %>% func(...)
+    return(db)
+}
+
+#' @export
+call_cpgs <- function(db, func, ...){
+    db@cpgs <- db@cpgs %>% func(...) 
+    return(db)
+}
+
+
 setMethod("show", 
           "cgdb", 
           function(object){
@@ -616,9 +643,9 @@ cgdb_info <- function(db){
     ncells <- comify(nrow(db@cells))
     ncpgs <- comify(nrow(db@cpgs))
     message(glue('cgdb object\n{ncpgs} CpGs X {ncells} cells'))    
-    message(glue('--- root: {db@db_root}'))
-    message('\n--- CpGs:')
-    print(db@cpgs)
-    message('\n--- cells:')
+    message(glue('--- root (@db_root): {db@db_root}'))
+    message('\n--- Cells (@cells):')
     print(db@cells)
+    message('\n--- CpGs (@cpgs):')
+    print(db@cpgs)
 }
