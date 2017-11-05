@@ -45,15 +45,15 @@ void ProgressReporter::report(uint64_t delta_steps_done)
             progress = min(progress, 100);
 
 			if (m_last_progress_reported < 0 && !m_report_prefix.empty())
-				Rcout << m_report_prefix.c_str(); 
+				Rcerr << m_report_prefix.c_str(); 
 
 			if (progress != m_last_progress_reported) {
                 if (progress == 100)
-                	Rcout << progress << "%";                    
+                	Rcerr << progress << "%";                    
                 else
-                	Rcout << progress << "%...";                    
+                	Rcerr << progress << "%...";                    
             } else				
-            	Rcout << ".";
+            	Rcerr << ".";
 			m_last_progress_reported = progress;
 			m_numsteps_from_last_report = 0;
 			m_last_report_clock = curclock;
@@ -66,9 +66,9 @@ void ProgressReporter::report_last()
 {
 	if (m_last_progress_reported >= 0) {
 		if (m_last_progress_reported != 100)			
-			Rcout << "100%" << std::endl;
+			Rcerr << "100%" << std::endl;
 		else			
-			Rcout << std::endl;
+			Rcerr << std::endl;
 	}
 }
 
