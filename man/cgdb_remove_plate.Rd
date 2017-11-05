@@ -2,7 +2,7 @@
 % Please edit documentation in R/cgdb.R
 \name{cgdb_remove_plate}
 \alias{cgdb_remove_plate}
-\title{Remove plate from cgdb#'}
+\title{Remove plate from cgdb}
 \usage{
 cgdb_remove_plate(db, plate_name, force = FALSE)
 }
@@ -12,5 +12,5 @@ cgdb_remove_plate(db, plate_name, force = FALSE)
 \item{force}{force remove (no user prompt)}
 }
 \description{
-Remove plate from cgdb#'
+Remove plate from cgdb
 }

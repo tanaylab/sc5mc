@@ -24,6 +24,7 @@ cgdb_validate_cells <- function(db){
         cells <- db_cells[!(db_cells %in% db@cells$cell_id)]
         warning(glue('the following cells exist in the db but do not exist in db@cells: {paste(cells, collapse=", ")}'))     
     }
+    invisible(db_cells)
 }
 
 
@@ -180,7 +181,7 @@ cgdb_update_cells <- function(db, cells, append=FALSE){
     return(db)
 }
 
-#' Remove plate from cgdb#' 
+#' Remove plate from cgdb
 #' 
 #' @param plate_name name of the plate
 #' @param force force remove (no user prompt)
@@ -220,9 +221,10 @@ cgdb_remove_cell <- function(db, cell_id, force=FALSE){
 #' @param smat smat object
 #' @param plate_name name of the plate
 #' @param overwrite overwrite
+#' @param update_cells update cells.csv
 #' 
 #' @export
-cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE){
+cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE, update_cells=TRUE){
     if (is.character(smat)){
         smat <- smat.load(smat)
     }
@@ -235,11 +237,6 @@ cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE){
     }
 
     plate_fn <- glue('{db@db_root}/{plate_name}')
-    # if (!(all(smat$intervs$chrom == db@cpgs$chrom) && all(smat$intervs$start == db@cpgs$start) && all(smat$intervs$end == db@cpgs$end))){                  
-    #     cell_md <- smat$cell_metadata
-    #     smatc<- smat.add_intervals(smat, db@cpgs %>% select(chrom, start, end))   
-    #     smat$cell_metadata <- cell_md
-    # }    
 
     cells <- smat$cell_metadata %>% 
         left_join(tibble(cell_id = colnames(smat))) %>% 
@@ -248,8 +245,7 @@ cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE){
         # mutate(cell_num = as.numeric(cell_num)) %>% 
         arrange(cell_num)
 
-    # stopifnot(all(smat$intervs$chrom == db@cpgs$chrom) && all(smat$intervs$start == db@cpgs$start) && all(smat$intervs$end == db@cpgs$end))    
-
+    message('Converting smat to data frame')
     smat_df <- smat.to_df(smat) %>% select(-id) %>% inner_join(db@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id))    
 
     plyr::alply(cells, 1, function(x) {            
@@ -263,27 +259,25 @@ cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE){
             if (!file.exists(paste0(fname, '.idx.bin')) || overwrite){
                 dir.create(dirname, showWarnings=FALSE, recursive=TRUE)
 
-                # cov_vec <- smat$cov[, x$cell_id]
-                # met_vec <- smat$meth[, x$cell_id]
-                # idxs <- which(cov_vec > 0)
-
                 d <- smat_df %>% filter(cell == x$cell_id)                
                 cov_vec <- d$cov
                 met_vec <- d$meth
                 idxs <- d$id
 
-                writeBin(idxs, paste0(fname, '.idx.bin'), size=4)
-                # writeBin(met_vec[idxs], paste0(fname, '.meth.bin'), size=4)
-                # writeBin(cov_vec[idxs], paste0(fname, '.cov.bin'), size=4)
+                writeBin(idxs, paste0(fname, '.idx.bin'), size=4)                
                 writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
                 writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)
                 message(glue('created {cell}'))    
             } 
             
-        }, .parallel=FALSE)
+        }, .parallel=TRUE)
     
-    db@cells <- fread(glue('{db@db_root}/cells.csv')) %>% as_tibble()
-    db <- cgdb_update_cells(db, cells, append=TRUE)
+    if (update_cells){
+        db@cells <- fread(glue('{db@db_root}/cells.csv')) %>% as_tibble()
+        db <- cgdb_update_cells(db, cells, append=TRUE)    
+    } else {
+        warning('cells.csv not updated')
+    }    
     return(db)
 }
 
