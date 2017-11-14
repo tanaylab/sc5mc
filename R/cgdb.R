@@ -79,7 +79,7 @@ cgdb_load <- function(db_root){
     }
     cpgs <- fread(cpgs_file) %>% as_tibble()
     cells <- fread(cells_file) %>% as_tibble()
-    db <- new('cgdb', db_root = db_root, cpgs = cpgs, cells=cells, CPG_NUM=nrow(cpgs))    
+    db <- new('cgdb', db_root = db_root, cpgs = cpgs, cells=cells, CPG_NUM=max(cpgs$id))    
     
     return(db)    
 }
@@ -135,7 +135,16 @@ cgdb_save <- function(db, path=NULL, force=FALSE){
     if (file.exists(file.path(path, 'data'))){
         file.remove(file.path(path, 'data'))
     }
-    file.symlink(file.path(db@db_root, 'data'), file.path(path, 'data'))
+    
+    link <- Sys.readlink(file.path(db@db_root, 'data'))
+    if (link == ''){
+        link <- file.path(db@db_root, 'data')
+    }
+
+    if (link != file.path(path, 'data')){
+        file.symlink(file.path(db@db_root, 'data'), file.path(path, 'data'))    
+    }
+    
     flock::unlock(l)   
     return(NULL) 
 }
