@@ -127,13 +127,24 @@ sc5mc.plot_cpg_marginals_bars <- function(smat, cell_nums=c(2,5,10,20,30,50,80))
 
 #' plot cpg marginals
 #' 
-#' @param smat smat object
+#' @param smat smat object / cgdb object
 #'
 #' @param type 'percent' or 'vals'
 #'
 #' @export
 sc5mc.plot_cpg_marginals <- function(smat, type='percent'){
-	mars <- smat.cpg_marginals(smat) %>% filter(cells > 0) %>% select(cells)
+	if (class(smat) == 'smat'){
+		mars <- smat.cpg_marginals(smat) %>% filter(cells > 0) %>% select(cells)
+		n_cells <- ncol(smat$cov)
+		n_cpgs <- nrow(smat$cov)
+	}
+
+	if (class(smat) == 'cgdb'){
+		mars <- smat %>% summarise_cells() %>% filter(cov > 0) %>% select(cells=cov)
+		n_cells <- nrow(smat@cells)
+		n_cpgs <- nrow(smat@cpgs)
+	}	
+	
 	mars <- mars %>% group_by(cells) %>% summarise(cpgs = n()) %>% arrange(-cells) %>% mutate(c_cpgs = cumsum(cpgs), p = c_cpgs / sum(cpgs))
 	x_breaks <- c(1,2,3,4,10,as.numeric(round(quantile(mars$cells, probs=c(0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 0.9, 1))))) %>% unique %>% sort
 	if (type == 'percent'){
@@ -141,30 +152,41 @@ sc5mc.plot_cpg_marginals <- function(smat, type='percent'){
 	} else {
 		p <- mars %>% ggplot(aes(x=cells, y=c_cpgs)) + geom_point(size=0.3) + scale_x_log10(breaks=x_breaks) + scale_y_log10(label=comify) + ylab('log10(CpGs with # cells >= x)') + xlab('log10(# of cells)')
 	}
-	p <- p + labs(subtitle = qq('number of cells = @{comify(ncol(smat$cov))}\nnumber of cpgs = @{comify(nrow(smat$cov))}')) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))
+	p <- p + labs(subtitle = qq('number of cells = @{comify(n_cells)}\nnumber of cpgs = @{comify(n_cpgs)}')) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))
 	return(p)
 }
 
 #' plot cell marginals
 #' 
-#' @param smat smat object
+#' @param smat smat object / cgdb object
 #'
 #' @param type 'percent' or 'vals'
 #'
 #' @export
 sc5mc.plot_cell_marginals <- function(smat, type='percent'){
-	mars <- smat.cell_marginals(smat) %>% filter(cov > 0) %>% select(cov)
+	if (class(smat) == 'smat'){
+		mars <- smat.cell_marginals(smat) %>% filter(cov > 0) %>% select(cov)
+		n_cells <- ncol(smat$cov)
+		n_cpgs <- nrow(smat$cov)
+	} 
+
+	if (class(smat) == 'cgdb'){
+		mars <- smat %>% summarise_cpgs() %>% filter(cov > 0) %>% select(cov)
+		n_cells <- nrow(smat@cells)
+		n_cpgs <- nrow(smat@cpgs)
+	}
+	
 	mars <- mars %>% group_by(cov) %>% summarise(cells = n())  %>% arrange(-cov) %>% mutate(c_cells = cumsum(cells), p = c_cells / sum(cells))
 
 	x_breaks <- as.numeric(round(quantile(mars$cov, probs=c(0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.7, 0.9, 1))))
 
 	if (type == 'percent'){
-		p <-mars %>% ggplot(aes(x=cov, y=p)) + geom_point(size=0.3) + scale_x_log10(label=comify, breaks=x_breaks) + scale_y_continuous(label=scales::percent) + ylab('% cells # CpGs >= x') + xlab('log10(# of CpGs)')
+		p <-mars %>% ggplot(aes(x=cov, y=p)) + geom_point(size=0.3) + scale_x_log10(label=comify, breaks=x_breaks) + scale_y_continuous(label=scales::percent) + ylab('% cells with # CpGs >= x') + xlab('log10(# of CpGs)')
 	} else {
 		p <- mars %>% ggplot(aes(x=cov, y=c_cells)) + geom_point(size=0.3) + scale_x_log10(label=comify) + scale_y_continuous(label=comify) + ylab('cells with # CpGs >= x') + xlab('log10(# of CpGs)')
 	}
 
-	p <- p + labs(subtitle = qq('number of cells = @{comify(ncol(smat$cov))}\nnumber of cpgs = @{comify(nrow(smat$cov))}'))
+	p <- p + labs(subtitle = qq('number of cells = @{comify(n_cells)}\nnumber of cpgs = @{comify(n_cpgs)}'))
 	return(p)
 }
 

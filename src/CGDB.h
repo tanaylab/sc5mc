@@ -62,7 +62,7 @@ class CGDB {
         DataFrame bin_meth(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);        
         List bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
         List extract(const IntegerVector& idxs, const std::vector<std::string>& cells);
-        List extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells, const std::vector<std::string>& chrom, const std::vector<int>& start, const std::vector<int>& end);
+        DataFrame extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells);
 
         std::vector<std::string> list_open_cells();
 };
