@@ -195,14 +195,79 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
 }
 
 ////////////////////////////////////////////////////////////////////////
-List CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells, const std::vector<std::string>& chrom, const std::vector<int>& start, const std::vector<int>& end){
+DataFrame CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells){
 
 	if (!valid_indexes(idxs)){
 		stop("some indexes are out of scope");
 	}
+    std::vector<float> all_cov(m_CPG_NUM+1, 0); 
+    std::vector<float> all_meth(m_CPG_NUM+1, 0);
+    std::vector<int> all_idxs = as<std::vector<int> >(idxs);    
 
-	List res;
-	return res;
+    std::vector<std::vector<float> > cov_mat(cells.size(), std::vector<float>());
+    std::vector<std::vector<float> > meth_mat(cells.size(), std::vector<float>());
+    std::vector<std::vector<float> > idxs_mat(cells.size(), std::vector<float>());
+    std::vector<std::vector<std::string > > cell_mat(cells.size(), std::vector<std::string>());
+
+    ProgressReporter progress;
+    progress.init(cells.size(), 1);
+
+    std::vector<float> all_cell_cov(idxs.length(), 0);
+    std::vector<float> all_cell_meth(idxs.length(), 0);    
+    
+    for (unsigned i=0; i < cells.size(); ++i) {        
+        int* cell_idx = NULL;
+        float* cell_met = NULL;
+        float* cell_cov = NULL;
+        Rcout << cells[i] << "\n";
+        
+        unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
+        if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
+            
+            // scatter cell coverage to all_cov
+            vsUnpackV(ncpgs, cell_cov, &all_cov[0], cell_idx);
+            
+            // gather cell coverage 
+            vsPackV(idxs.length(), &all_cov[0], &all_idxs[0], &all_cell_cov[0]);
+            
+            // scatter cell methyaltion to all_cov
+            vsUnpackV(ncpgs, cell_met, &all_meth[0], cell_idx);
+            
+            // gather cell methylation 
+            vsPackV(idxs.length(), &all_meth[0], &all_idxs[0], &all_cell_meth[0]);
+            
+            for (unsigned j=0; j < all_cell_cov.size(); ++j){
+                if (all_cell_cov[j] > 0){                
+                    cov_mat[i].push_back(all_cell_cov[j]);
+                    idxs_mat[i].push_back(idxs[j]);
+                    meth_mat[i].push_back(all_cell_meth[j]);
+                }
+            }
+            
+            cell_mat[i].resize(cov_mat[i].size());
+            std::fill(cell_mat[i].begin(), cell_mat[i].end(), cells[i]);
+            
+            // // clean all_meth vector
+            cblas_sscal(all_meth.size(), 0, &all_meth[0], 1);  
+            cblas_sscal(all_cell_meth.size(), 0, &all_cell_meth[0], 1);    
+            cblas_sscal(all_cov.size(), 0, &all_cov[0], 1);
+            cblas_sscal(all_cell_cov.size(), 0, &all_cell_cov[0], 1);     
+            
+        }
+        progress.report(1);
+    }
+    progress.report_last();
+    
+    Function c("c");
+    Function do_call("do.call");
+    
+    NumericVector idxs_vector = do_call(c, wrap(idxs_mat));    
+    NumericVector cov_vector = do_call(c, wrap(cov_mat));
+    NumericVector meth_vector = do_call(c, wrap(meth_mat));    
+    StringVector cell_vector = do_call(c, wrap(cell_mat));
+
+
+    return DataFrame::create(_["cell_id"] = cell_vector, _["id"]=idxs_vector, _["cov"]=cov_vector, _["meth"]=meth_vector);
 }
 
 ////////////////////////////////////////////////////////////////////////

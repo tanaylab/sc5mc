@@ -7,7 +7,7 @@
 sc5mc.plot_cpg_marginals(smat, type = "percent")
 }
 \arguments{
-\item{smat}{smat object}
+\item{smat}{smat object / cgdb object}
 
 \item{type}{'percent' or 'vals'}
 }

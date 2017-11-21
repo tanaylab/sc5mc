@@ -351,3 +351,19 @@ smat.plot_cor_mat <- function(smat,
 }
 
 
+shuffle_mat <- function(m_meth, m_cov, m_avg, n_shuff=1e3){
+    m_unmeth <- m_cov - m_meth
+
+    m_shuff <- shuffle_mat_marginals(m_meth, which(m_meth > 0, arr.ind=TRUE), n_shuff )
+
+    m_cov_shuff <- (m_shuff + m_unmeth)
+    m_avg_shuff <- m_shuff / (m_shuff + m_unmeth)
+
+    suppressWarnings(cr <- cor.test(as_vector(m_avg_shuff[m_cov > 0]), as_vector(m_avg[m_cov > 0]), method='spearman', na.rm=T)$estimate            )
+    stopifnot(all(colSums(m_shuff) == colSums(m_meth)))
+    stopifnot(all(colSums(m_shuff) == colSums(m_meth)))
+    message(glue('cor = {cr}'))
+    return(list(cov = m_cov_shuff, meth = m_shuff, avg = m_avg_shuff))
+}
+
+

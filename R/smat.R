@@ -165,6 +165,11 @@ smat.save <- function(smat, prefix, create_dirs=TRUE){
         fwrite(smat$cpg_metadata, paste0(prefix, '_cpg_metadata.tsv'), sep='\t')
     }
 
+    if (has_name(smat, 'hemi_meth')){
+        message('saving hemi methylation')
+        fwrite(smat$hemi_meth, paste0(prefix, '_hemi_meth.tsv'), sep='\t')
+    }    
+
     attributes <- list()
     for (attr in c('name', 'description')){
         if (has_name(smat, attr)){
@@ -214,6 +219,11 @@ smat.load <- function(prefix){
     cpg_metadata_file <- paste0(prefix, '_cpg_metadata.tsv')
     if (file.exists(cpg_metadata_file)){
         conf$sparse_matrix$cpg_metadata <- cpg_metadata_file
+    }
+
+    hemi_meth_file <- paste0(prefix, '_hemi_meth.tsv')
+    if (file.exists(hemi_meth_file)){
+        conf$sparse_matrix$hemi_meth <- hemi_meth_file
     }
 
     tidy_cpgs_dir <- paste0(prefix, '_tcpgs')
@@ -292,6 +302,10 @@ smat.from_conf <- function(conf){
 
     if (has_name(conf$sparse_matrix, 'cpg_metadata')){
         smat$cpg_metadata <- fread(conf$sparse_matrix$cpg_metadata) %>% tbl_df()
+    }
+
+    if (has_name(conf$sparse_matrix, 'hemi_meth')){
+        smat$hemi_meth <- fread(conf$sparse_matrix$hemi_meth) %>% tbl_df()
     }
 
     if (has_name(conf$sparse_matrix, 'tidy_cpgs_dir')){
@@ -824,6 +838,37 @@ smat.add_intervals <- function(smat, intervals){
     smat_new <- smat.filter(smat_new, cols=colnames(smat_new)[colnames(smat_new) != 'dummy'])
     return(smat_new)
 }
+
+#' @export
+get_hemi_meth <- function(tcpgs){
+    calc_hemi_meth <- function(x){
+        id <- x$cell_id[1]
+        message(glue('doing {id}'))        
+        x <- x %>% group_by(cell_id, cg_pos) %>% filter(n_distinct(strand) >= 2)
+        if (nrow(x) == 0){
+            return(tibble(cell_id = id, chrom = character(), cg_pos=numeric(), `-`=numeric(), `+`=numeric()))
+        }
+        x <- x %>% group_by(cell_id, chrom, cg_pos, strand) %>% summarise(meth = sum(meth), cov = n()) %>% ungroup() %>% filter(cov == 1) %>% select(-cov)
+        if (nrow(x) == 0){
+            return(tibble(cell_id = id, chrom = character(), cg_pos=numeric(), `-`=numeric(), `+`=numeric()))   
+        }
+        x %>% spread(strand, meth)
+    }
+    res <- tcpgs %>% plyr::dlply(plyr::.(cell_id), calc_hemi_meth, .parallel=TRUE)    
+    res <- res %>% map_dfr(~ .x) %>% rename(start = 'cg_pos', minus='-', plus='+') %>% mutate(end = start + 1) %>% select(cell_id, chrom, start, end, minus, plus)
+    return(res)
+}
+
+#' @export
+smat.calc_hemi_meth <- function(smat){
+    if (!has_name(smat, 'tidy_cpgs')){
+        browser()
+        smat <- smat.get_tidy_cpgs(smat)
+    }
+    smat$hemi_meth <- get_hemi_meth(smat$tidy_cpgs)
+    return(smat)
+}
+
 
 # Boolean functions
 has_stats <- function(smat){

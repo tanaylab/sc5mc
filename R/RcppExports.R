@@ -13,6 +13,10 @@ extract_sc_data <- function(cgdb, idxs, cells) {
     .Call('_sc5mc_extract_sc_data', PACKAGE = 'sc5mc', cgdb, idxs, cells)
 }
 
+extract_sc_data_sparse <- function(cgdb, idxs, cells) {
+    .Call('_sc5mc_extract_sc_data_sparse', PACKAGE = 'sc5mc', cgdb, idxs, cells)
+}
+
 bin_meth_per_cell_cpp <- function(cgdb, idxs, bins, cells) {
     .Call('_sc5mc_bin_meth_per_cell_cpp', PACKAGE = 'sc5mc', cgdb, idxs, bins, cells)
 }
@@ -23,5 +27,9 @@ freemem_cpp <- function(cgdb) {
 
 list_open_cells <- function(cgdb) {
     .Call('_sc5mc_list_open_cells', PACKAGE = 'sc5mc', cgdb)
+}
+
+shuffle_mat_marginals <- function(m_meth, inds_mat, n_shuff = 1000L) {
+    .Call('_sc5mc_shuffle_mat_marginals', PACKAGE = 'sc5mc', m_meth, inds_mat, n_shuff)
 }
 

@@ -82,7 +82,7 @@ sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description
 	if (file.exists(cell_metadata_fn)){
 		file.copy(cell_metadata_fn, glue('{plate_workdir}/cell_metadata.csv'))
 	}
-
+	
 	indexes_fn <- glue('{workdirs[1]}/indexes.yaml')	
 	file.copy(indexes_fn, glue('{plate_workdir}/indexes.yaml'))	
 

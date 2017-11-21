@@ -9,6 +9,14 @@ check_cgdb <- function(object){
         errors <- c(errors, 'cells data frame should have "cell_id", "cell_num" and "plate" fields')
     }
 
+    if (!dir.exists(object@db_root)){
+        errors <- c(errors, glue('root dir {object@db_root} doesn\'t exists'))
+    }
+
+    if (!dir.exists(file.path(object@db_root, 'data'))){
+        errors <- c(errors, glue('data dir {object@db_root} doesn\'t exists'))
+    }
+
     if (length(errors) == 0) TRUE else errors
 }
 
@@ -135,7 +143,7 @@ cgdb_save <- function(db, path=NULL, force=FALSE){
     if (file.exists(file.path(path, 'data'))){
         file.remove(file.path(path, 'data'))
     }
-    
+
     link <- Sys.readlink(file.path(db@db_root, 'data'))
     if (link == ''){
         link <- file.path(db@db_root, 'data')
@@ -160,7 +168,7 @@ cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){
     dir.create(db_root, recursive = TRUE, showWarnings = FALSE)
     dir.create(file.path(db_root, 'data'), recursive = TRUE, showWarnings = FALSE)
     cells <- tibble(cell_id = character(), cell_num = numeric(), plate = character())
-    if (file.exists(glue('{db_root}/cells.csv')) || !overwrite){
+    if (file.exists(glue('{db_root}/cells.csv')) && !overwrite){
         stop("db exist. Run with overwrite = TRUE to overwrite")
     }
     l <- flock::lock(glue('{db_root}/.cells_lock'))
@@ -181,6 +189,12 @@ cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){
 
 cgdb_update_cells <- function(db, cells, append=FALSE){   
     if (append){
+        if (!is.character(db@cells$cell_num)){
+            db@cells$cell_num <- as.character(db@cells$cell_num)
+        }
+        if (!is.character(cells$cell_num)){
+            cells$cell_num <- as.character(cells$cell_num)
+        }
         cells <- bind_rows(db@cells %>% filter(!(cell_id %in% cells$cell_id)), cells)
     }
     l <- flock::lock(glue('{db@db_root}/.cells_lock'))
@@ -321,11 +335,32 @@ extract.cgdb <- function(.Object, cells=NULL, cpgs=NULL, tidy=FALSE){
     
     if (tidy){
         # in the future - call extract sparse
+        # res <- extract_sc_data_sparse(.Object@.xptr, cpgs$id, cells)
         res$cov <- res$cov %>% gather('cell_id', 'cov', -(chrom:end))
         res$meth <- res$meth %>% gather('cell_id', 'meth', -(chrom:end))
         res <- res$cov %>% mutate(meth = res$meth$meth) %>% filter(cov > 0) 
     }
     return(res)  
+}
+
+#' Extract data from intervals and cells in a sparse format
+#'
+#' @param cells cells to extract
+#' @param cpgs cpgs to extract
+#'
+#' @export
+extract_sparse <- function(.Object, cells=NULL, cpgs=NULL){
+    if (is.null(cpgs)){
+        cpgs <- .Object@cpgs    
+    }   
+
+    if (is.null(cells)){
+        cells <- .Object@cells$cell_id
+    }
+
+    res <- extract_sc_data_sparse(.Object@.xptr, cpgs$id, cells)
+    res <- res %>% left_join(cpgs %>% select(chrom, start, end, id)) %>% select(chrom, start, end, cell_id, cov, meth) %>% as_tibble()
+    return(res)
 }
 
 #' Summarise data from intervals and cells
@@ -507,6 +542,13 @@ mutate_cells <- function(db, ...){
     return(db)
 }
 
+gintervals.neighbors_cpgs <- function(db, ...){
+    opt <- options(gmax.data.size = 1e9)
+    on.exit(options(opt))
+    db@cpgs <- db@cpgs %>% gintervals.neighbors1(...)
+    return(db)
+}
+
 # filter
 #' @export
 filter_cpgs <- function(db, ...){
@@ -618,6 +660,19 @@ left_join_cpgs <- function(db, ...){
 #' @export
 left_join_cells <- function(db, ...){
     db@cells <- db@cells %>% left_join(...)    
+    return(db)
+}
+
+# count
+#' @export
+count_cpgs <- function(db, ...){
+    db@cpgs <- db@cpgs %>% count(...)    
+    return(db)
+}
+
+#' @export
+count_cells <- function(db, ...){
+    db@cells <- db@cells %>% count(...)    
     return(db)
 }
 
