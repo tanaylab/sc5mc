@@ -44,6 +44,13 @@ DataFrame extract_sc_data_sparse(SEXP cgdb, const IntegerVector& idxs, const std
 
 ////////////////////////////////////////////////////////////////////////
 // [[Rcpp::export]]
+DataFrame extract_sc_data_sparse_all(SEXP cgdb, const std::vector<std::string>& cells){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->extract_sparse_all(cells));    
+}
+
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
 List bin_meth_per_cell_cpp(SEXP cgdb, const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells){
     Rcpp::XPtr<CGDB> ptr(cgdb);
     return(ptr->bin_meth_per_cell_cpp(idxs, bins, cells));    

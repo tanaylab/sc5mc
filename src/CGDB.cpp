@@ -36,6 +36,20 @@ unsigned CGDB::get_cell_data(const std::string& cell, int*& cell_idx, float*& ce
 }
 
 ////////////////////////////////////////////////////////////////////////
+unsigned CGDB::get_cell_ncpgs(const std::string& cell){
+    if (m_ncpgs.find(cell) != m_ncpgs.end()){        
+        return(m_ncpgs[cell]);
+    }
+
+    unsigned point = cell.find(".");
+    std::string fname = m_db_dir + "/" +  cell.substr(0, point) + "/" + cell.substr(point+1);
+
+    std::string idx_fname = fname + ".idx.bin";    
+    unsigned ncpgs = get_file_length(idx_fname) / 4;
+    return(ncpgs);
+}
+
+////////////////////////////////////////////////////////////////////////
 DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::string>& cells){
 	if (!valid_indexes(idxs)){
 		stop("some indexes are out of scope");
@@ -195,6 +209,51 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
 }
 
 ////////////////////////////////////////////////////////////////////////
+DataFrame CGDB::extract_sparse_all(const std::vector<std::string>& cells){
+    unsigned tot_cpgs = 0;
+    for (unsigned i = 0; i < cells.size(); ++i){
+        tot_cpgs += get_cell_ncpgs(cells[i]);
+    }
+
+    std::vector<float> idxs_vec(tot_cpgs, 0);
+    std::vector<float> cov_vec(tot_cpgs, 0);
+    std::vector<float> meth_vec(tot_cpgs, 0);
+    std::vector<std::string > cells_vec(tot_cpgs);
+
+    auto idx_iter = idxs_vec.begin();
+    auto cov_iter = cov_vec.begin();
+    auto meth_iter = meth_vec.begin();
+    auto cells_iter = cells_vec.begin();
+    
+    ProgressReporter progress;
+    progress.init(cells.size(), 1);
+
+    for (unsigned i=0; i < cells.size(); ++i) {        
+        int* cell_idx = NULL;
+        float* cell_met = NULL;
+        float* cell_cov = NULL;        
+        
+        unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
+        if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
+
+            std::copy(cell_idx, cell_idx + ncpgs, idx_iter);
+            std::copy(cell_cov, cell_cov + ncpgs, cov_iter);
+            std::copy(cell_met, cell_met + ncpgs, meth_iter);
+            std::fill(cells_iter, cells_iter + ncpgs, cells[i]);
+                        
+            idx_iter += ncpgs;
+            cov_iter += ncpgs;
+            meth_iter += ncpgs;
+            cells_iter += ncpgs;            
+        }
+        progress.report(1);
+    }
+    progress.report_last();   
+    
+    return DataFrame::create(_["cell_id"] = cells_vec, _["id"]=idxs_vec, _["cov"]=cov_vec, _["meth"]=meth_vec);        
+}
+
+////////////////////////////////////////////////////////////////////////
 DataFrame CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells){
 
 	if (!valid_indexes(idxs)){
@@ -218,15 +277,14 @@ DataFrame CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std:
     for (unsigned i=0; i < cells.size(); ++i) {        
         int* cell_idx = NULL;
         float* cell_met = NULL;
-        float* cell_cov = NULL;
-        Rcout << cells[i] << "\n";
+        float* cell_cov = NULL;        
         
         unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
         if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
             
             // scatter cell coverage to all_cov
-            vsUnpackV(ncpgs, cell_cov, &all_cov[0], cell_idx);
-            
+            vsUnpackV(ncpgs, cell_cov, &all_cov[0], cell_idx);        
+
             // gather cell coverage 
             vsPackV(idxs.length(), &all_cov[0], &all_idxs[0], &all_cell_cov[0]);
             
@@ -244,8 +302,7 @@ DataFrame CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std:
                 }
             }
             
-            cell_mat[i].resize(cov_mat[i].size());
-            std::fill(cell_mat[i].begin(), cell_mat[i].end(), cells[i]);
+            cell_mat[i].assign(cov_mat[i].size(), cells[i]);
             
             // // clean all_meth vector
             cblas_sscal(all_meth.size(), 0, &all_meth[0], 1);  
@@ -261,12 +318,11 @@ DataFrame CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std:
     Function c("c");
     Function do_call("do.call");
     
-    NumericVector idxs_vector = do_call(c, wrap(idxs_mat));    
-    NumericVector cov_vector = do_call(c, wrap(cov_mat));
-    NumericVector meth_vector = do_call(c, wrap(meth_mat));    
-    StringVector cell_vector = do_call(c, wrap(cell_mat));
-
-
+    NumericVector idxs_vector = do_call(c, wrap(idxs_mat));        
+    NumericVector cov_vector = do_call(c, wrap(cov_mat));    
+    NumericVector meth_vector = do_call(c, wrap(meth_mat));        
+    StringVector cell_vector = do_call(c, wrap(cell_mat));    
+    
     return DataFrame::create(_["cell_id"] = cell_vector, _["id"]=idxs_vector, _["cov"]=cov_vector, _["meth"]=meth_vector);
 }
 

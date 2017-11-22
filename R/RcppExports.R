@@ -17,6 +17,10 @@ extract_sc_data_sparse <- function(cgdb, idxs, cells) {
     .Call('_sc5mc_extract_sc_data_sparse', PACKAGE = 'sc5mc', cgdb, idxs, cells)
 }
 
+extract_sc_data_sparse_all <- function(cgdb, cells) {
+    .Call('_sc5mc_extract_sc_data_sparse_all', PACKAGE = 'sc5mc', cgdb, cells)
+}
+
 bin_meth_per_cell_cpp <- function(cgdb, idxs, bins, cells) {
     .Call('_sc5mc_bin_meth_per_cell_cpp', PACKAGE = 'sc5mc', cgdb, idxs, bins, cells)
 }

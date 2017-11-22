@@ -28,6 +28,8 @@ class CGDB {
 
         unsigned get_cell_data(std::string const& cell, int*& cell_idx, float*& cell_met, float*& cell_cov);
 
+        unsigned get_cell_ncpgs(const std::string& cell);
+
         bool valid_indexes(const IntegerVector& idxs){
         	return (min(idxs) > 0 && max(idxs) <= m_CPG_NUM );
         }
@@ -63,6 +65,7 @@ class CGDB {
         List bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
         List extract(const IntegerVector& idxs, const std::vector<std::string>& cells);
         DataFrame extract_sparse(const IntegerVector& idxs, const std::vector<std::string>& cells);
+        DataFrame extract_sparse_all(const std::vector<std::string>& cells);
 
         std::vector<std::string> list_open_cells();
 };
