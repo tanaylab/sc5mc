@@ -58,6 +58,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// extract_sc_data_sparse_all
+DataFrame extract_sc_data_sparse_all(SEXP cgdb, const std::vector<std::string>& cells);
+RcppExport SEXP _sc5mc_extract_sc_data_sparse_all(SEXP cgdbSEXP, SEXP cellsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type cells(cellsSEXP);
+    rcpp_result_gen = Rcpp::wrap(extract_sc_data_sparse_all(cgdb, cells));
+    return rcpp_result_gen;
+END_RCPP
+}
 // bin_meth_per_cell_cpp
 List bin_meth_per_cell_cpp(SEXP cgdb, const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
 RcppExport SEXP _sc5mc_bin_meth_per_cell_cpp(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP binsSEXP, SEXP cellsSEXP) {
@@ -114,11 +126,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_bin_meth", (DL_FUNC) &_sc5mc_bin_meth, 4},
     {"_sc5mc_extract_sc_data", (DL_FUNC) &_sc5mc_extract_sc_data, 3},
     {"_sc5mc_extract_sc_data_sparse", (DL_FUNC) &_sc5mc_extract_sc_data_sparse, 3},
+    {"_sc5mc_extract_sc_data_sparse_all", (DL_FUNC) &_sc5mc_extract_sc_data_sparse_all, 2},
     {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 4},
     {"_sc5mc_freemem_cpp", (DL_FUNC) &_sc5mc_freemem_cpp, 1},
     {"_sc5mc_list_open_cells", (DL_FUNC) &_sc5mc_list_open_cells, 1},
     {"_sc5mc_shuffle_mat_marginals", (DL_FUNC) &_sc5mc_shuffle_mat_marginals, 3},
-    {"CGDB__new",                     (DL_FUNC) &CGDB__new,                     2},
+    {"CGDB__new",                         (DL_FUNC) &CGDB__new,                         2},
     {NULL, NULL, 0}
 };
 
