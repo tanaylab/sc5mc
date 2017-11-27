@@ -414,8 +414,8 @@ summarise_cpgs <- function(db, cpgs=NULL){
 #' 
 #' @export
 summarise_cells <- function(db, cells=NULL){
-    cells <- cells %||% db@cells$cell_id
-    scdata <- mean_meth_per_cpg(db, idxs=db@cpgs$id, cells=cells)    
+    cells <- cells %||% db@cells$cell_id    
+    scdata <- mean_meth_per_cpg(db, idxs=db@cpgs$id, cells=cells)        
     scdata <- db@cpgs %>% select(-id) %>% bind_cols(scdata) %>% as_tibble() 
     return(scdata)    
 }
@@ -451,8 +451,8 @@ summarise_by_both_groups <- function(db){
 
 # CPP helper functions
 mean_meth_per_cpg <- function(db, idxs, cells){
-    bins <- 1:length(idxs)        
-    res <- bin_meth(db@.xptr, idxs, bins, cells)
+    bins <- 1:length(idxs)       
+    res <- bin_meth(db@.xptr, idxs, bins, cells)        
     res <- res %>% mutate(id = idxs) %>% select(id, cov, meth)
     return(res)
 }
