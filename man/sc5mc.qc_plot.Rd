@@ -6,7 +6,8 @@
 \usage{
 sc5mc.qc_plot(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
   max_cells = Inf, cpg_pairs_min_cells = 20, regions = NULL,
-  capture_stats = FALSE, ofn = NULL, width = NULL, base_height = 9, ...)
+  capture_stats = FALSE, ofn = NULL, width = NULL, base_height = 9,
+  subtitle = NULL, ...)
 }
 \arguments{
 \item{smat}{smat object}
@@ -29,6 +30,8 @@ sc5mc.qc_plot(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
 
 \item{base_height}{The height (in inches) of the plot or of one sub-plot if \code{nrow}
 or \code{ncol} > 1. Default is 4.}
+
+\item{subtitle}{additional text for title}
 
 \item{...}{additional parameters for cowplot::save_plot}
 }

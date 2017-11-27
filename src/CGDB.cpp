@@ -73,7 +73,6 @@ DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::stri
         unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
 
         
-
         if ((cell_idx == NULL) || (cell_met == NULL) || (cell_cov == NULL) ) {
             meth[i] = NA_REAL;
             cov[i] = NA_REAL;
@@ -99,10 +98,11 @@ DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, c
 		stop("indexes and bins have different lengths");
 	}
 
-    std::vector<float> bins_full(m_CPG_NUM+1, 0);    
-    
-    vsUnpackV(idxs.length(), &as<std::vector<float> >(bins)[0], &bins_full[0], idxs.begin());
-    
+    std::vector<double> bins_vec(bins.begin(), bins.end());
+     std::vector<double> bins_full(m_CPG_NUM+1, 0);   
+ 
+    vdUnpackV(idxs.length(), &bins_vec[0], &bins_full[0], idxs.begin());
+ 
     unsigned int max_bin = *std::max_element(bins.begin(), bins.end());  
     NumericVector meth(max_bin + 1);
     NumericVector cov(max_bin + 1);
@@ -110,7 +110,7 @@ DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, c
     ProgressReporter progress;
     progress.init(cells.size(), 1);
 
-    for (unsigned i=0; i<cells.size(); ++i) {
+    for (unsigned i=0; i < cells.size(); ++i) {
         int* cell_idx = NULL;
         float* cell_met = NULL;
         float* cell_cov = NULL;
@@ -119,15 +119,16 @@ DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, c
         if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
 
             // get bins for the covered CpGs        
-            std::vector<float > cell_bins(ncpgs);
-            
-            vsPackV(ncpgs, &bins_full[0], cell_idx, &cell_bins[0]);
-            
+            std::vector<double > cell_bins(ncpgs, 0);
+
+            vdPackV(ncpgs, &bins_full[0], cell_idx, &cell_bins[0]);
+
             float* cov_j = cell_cov;
             float* meth_j = cell_met;
+
             for (auto & j : cell_bins){
-                cov[j]+= *(cov_j);
-                meth[j]+= *(meth_j);
+                cov[(int)j]+= *(cov_j);
+                meth[(int)j]+= *(meth_j);
                 ++cov_j;
                 ++meth_j;
             }            
@@ -159,9 +160,9 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
 	}
 
 
-    std::vector<float> bins_full(m_CPG_NUM+1, 0);    
+    std::vector<double> bins_full(m_CPG_NUM+1, 0);    
     
-    vsUnpackV(idxs.length(), &as<std::vector<float> >(bins)[0], &bins_full[0], idxs.begin());
+    vdUnpackV(idxs.length(), &as<std::vector<double> >(bins)[0], &bins_full[0], idxs.begin());
     
     unsigned int max_bin = *std::max_element(bins.begin(), bins.end());  
 
@@ -180,10 +181,10 @@ List CGDB::bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector&
         if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
 
             // get bins for the covered CpGs        
-            std::vector<float > cell_bins(ncpgs);
+            std::vector<double > cell_bins(ncpgs);
             
-            vsPackV(ncpgs, &bins_full[0], cell_idx, &cell_bins[0]);
-            
+            vdPackV(ncpgs, &bins_full[0], cell_idx, &cell_bins[0]);
+                        
             float* cov_j = cell_cov;
             float* meth_j = cell_met;
             for (auto & j : cell_bins){
@@ -224,7 +225,7 @@ DataFrame CGDB::extract_sparse_all(const std::vector<std::string>& cells){
     auto cov_iter = cov_vec.begin();
     auto meth_iter = meth_vec.begin();
     auto cells_iter = cells_vec.begin();
-    
+
     ProgressReporter progress;
     progress.init(cells.size(), 1);
 
@@ -357,7 +358,7 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
         	// clean all_cov vector
         	cblas_sscal(all_cov.size(), 0, &all_cov[0], 1);
         	
-        	// scatter cell methyaltion to all_cov
+        	// scatter cell methylation to all_cov
         	vsUnpackV(ncpgs, cell_met, &all_meth[0], cell_idx);
 
         	// gather cell methylation in idxs to result 2d array meth
