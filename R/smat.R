@@ -231,6 +231,8 @@ smat.load <- function(prefix){
         conf$sparse_matrix$tidy_cpgs_dir <- tidy_cpgs_dir   
     }
 
+    conf$sparse_matrix$path <- prefix
+
     return(smat.from_conf(conf))
 }
 
@@ -311,6 +313,11 @@ smat.from_conf <- function(conf){
     if (has_name(conf$sparse_matrix, 'tidy_cpgs_dir')){
         smat$tidy_cpgs_dir <- conf$sparse_matrix$tidy_cpgs_dir
     }
+
+    if (has_name(conf$sparse_matrix, 'path')){
+        smat$path <- conf$sparse_matrix$path
+    }
+
     class(smat) <- 'smat'
     return(smat)
 }

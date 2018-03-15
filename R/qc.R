@@ -6,6 +6,7 @@
 #' @param capture_stats show only statistics from capture regions
 #' @param ofn output file
 #' @param subtitle additional text for title
+#' @param raw_reads_dir directory with the raw reads
 #' @param ... additional parameters for cowplot::save_plot
 #' @inheritParams cowplot::save_plot
 #' @inheritParams smat.filter_by_cov
@@ -13,7 +14,8 @@
 #' @return plot
 #' 
 #' @export
-sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20, regions=NULL, capture_stats = FALSE, ofn=NULL, width=NULL, base_height=9, subtitle = NULL, ...){
+sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20, regions=NULL, capture_stats = FALSE, ofn=NULL, width=NULL, base_height=9, subtitle = NULL, raw_reads_dir=NULL, ...){
+
 	old <- theme_set(theme_bw(base_size=8))
 	on.exit(theme_set(old))
 	if (any(min_cpgs != 1, max_cpgs != Inf,  min_cells != 1, max_cells != Inf)){			
@@ -28,36 +30,73 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 		smat$stats <- smat$stats %>% mutate(lib = cell_id)
 	}
 
+	batch_colors <- c('#e41a1c','#377eb8','#4daf4a','#984ea3')
+
+	index_plots <- sc5mc.index_plots(smat, return_plotlist = TRUE)
+	index_plots <- map(index_plots, ~ .x + theme(legend.position="bottom"))	
+
+	figs <- index_plots
+
+	# stats_fn <- glue('{smat$path}_stats.csv')
+	if (has_stats(smat) && !has_name(smat$stats, 'illu_read_num') && !is.null(raw_reads_dir)){
+		smat$stats <- smat.raw_reads_stats(smat, raw_reads_dir)
+		all_reads <- smat$stats %>% distinct(illumina_index, illu_read_num) %>% pull(illu_read_num) %>% sum(na.rm=TRUE)
+		figs[['p_demulti']] <- smat$stats %>%
+			group_by(batch_id) %>% 
+			summarise(total_reads = sum(total_reads, na.rm=TRUE)) %>% 
+			bind_rows(smat$stats  %>% 
+				summarise(batch_id = 'no_index', total_reads = all_reads - sum(total_reads, na.rm=TRUE))) %>% 
+			ungroup() %>% 
+			mutate(p = total_reads / sum(total_reads, na.rm=TRUE)) %>% 
+			ggplot(aes(x=batch_id, y= p, fill=batch_id)) + 
+				geom_col() + 
+				scale_fill_manual(values=c(batch_colors, 'black'), drop=FALSE) + 
+				guides(fill=FALSE) + 
+				xlab('') + 
+				ylab('% of reads') + 
+				scale_y_continuous(label=scales::percent)	
+		
+		# fwrite(stats, stats_fn)
+	}
+
+	
+	if (has_stats(smat)){	
+		message('calculating reads per CpG')
+		
+		figs[['reads_per_cpg']] <- sc5mc.plot_reads_per_cpg(smat, color_column='batch_id', colors=batch_colors, log_scale=TRUE) + guides(color=FALSE)
+	}
+
 	message('calculating CpG marginals')
-	cpg_mars <- sc5mc.plot_cpg_marginals(smat, type='vals') 
-	cg_pairs_mars <- sc5mc.plot_cpg_marginals_bars(smat)
+	figs[['cpg_mars']] <- sc5mc.plot_cpg_marginals(smat, type='vals') 
+	figs[['cg_pairs_bars']] <- sc5mc.plot_cpg_marginals_bars(smat)
 
 	message('calculating cell marginals')
-	cell_mars <- sc5mc.plot_cell_marginals(smat, type='vals')
+	figs[['cell_mars']] <- sc5mc.plot_cell_marginals(smat, type='vals')
+	figs[['cell_mars_bars']] <- sc5mc.plot_cell_marginals_bars(smat)
 
-	message('calculating cell pairs')
-	cell_pairs_mars <- sc5mc.plot_cell_pairs_coverage(smat)
-
-	figs <- list(cpg_mars, cg_pairs_mars, cell_mars, cell_pairs_mars)	
+	# message('calculating cell pairs')
+	# cell_pairs_mars <- sc5mc.plot_cell_pairs_coverage(smat)	
 	
-	if (has_stats(smat)){		
-		message('calculating reads per CpG')
-		figs[['reads_per_cpg']] <- sc5mc.plot_reads_per_cpg(smat)
+	if (has_stats(smat)){			
 		message('calculating conversion')
 		figs[['conversion']] <- sc5mc.plot_conversion(smat)				
 	}
 
 	if (has_name(smat, 'tidy_cpgs') || has_name(smat, 'tidy_cpgs_dir')){
-		if (!has_name(smat, 'tidy_cpgs')){
-			smat <- smat.get_tidy_cpgs(smat)
-		}		
-		message('calculating cells per umi')
-		figs[['cells_per_umi']] <- sc5mc.plot_cells_per_umi(smat)
-		message('calculating reads per umi')
+		# if (!has_name(smat, 'tidy_cpgs')){
+		# 	smat <- smat.get_tidy_cpgs(smat)
+		# }		
+		smat.cache_stats(smat, regions=regions)
+
+		message('calculating reads per umi')		
 		figs[['reads_per_umi']] <- sc5mc.plot_reads_per_umi(smat, intervals=regions)
+	
 		message('calculating reads per umi per insert length')
 		figs[['insert_length']] <- sc5mc.plot_insert_length_reads_per_umi(smat, intervals=regions)
-
+	
+		message('calculating cells per umi')
+		figs[['cells_per_umi']] <- sc5mc.plot_cells_per_umi(smat)
+		
 		if (!is.null(regions)){
 			message('calculating on target')
 			figs[['frac_ontar']] <- sc5mc.plot_frac_on_target(smat, intervals=regions)
@@ -78,6 +117,7 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 		} else {
 			lab <- smat$name
 		}
+		
 		if (!is.null(subtitle)){
 			lab <- paste(lab, subtitle, sep='\n')
 		}
@@ -90,42 +130,88 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 		message('saving plot')
 		cowplot::save_plot(ofn, p, base_height=base_height, ...)
 	}
+
 	return(p)
 }
 
 #' @export
-smat.cache_stats <- function(smat, regions=FALSE){
+smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
+	cpu_fn <- glue('{smat$tidy_cpgs_dir}/stats/cpu.csv')
+	rpu_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu.csv')
+	rpu_insert_length_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu_insert_length.csv')
+	ontar_stats_fn <- glue('{smat$tidy_cpgs_dir}/stats/ontar_stats.csv')
+	reg_stats_fn <- glue('{smat$tidy_cpgs_dir}/stats/regions_stats.csv')
+
+
+	if (!overwrite || all(file.exists(c(cpu_fn, rpu_fn, rpu_insert_length_fn)))){
+		if (is.null(regions) || all(file.exists(c(ontar_stats_fn, reg_stats_fn)))){
+			return(invisible(NULL))
+		}		
+	}	
+
 	if (!has_name(smat, 'tidy_cpgs')){
 		message("Getting tidy cpgs unique")
-		smat <- smat.get_tidy_cpgs(smat)
+		smat <- smat.get_tidy_cpgs(smat, unique=TRUE)
 	}		
 	if (!has_name(smat, 'tidy_cpgs_all')){
 		message("Getting tidy cpgs non unique")
 		smat <- smat.get_tidy_cpgs(smat, unique=FALSE)
 	}
 
-	dir.create(glue('{smat$tidy_cpgs_dir}/stats'))
+	dir.create(glue('{smat$tidy_cpgs_dir}/stats'), showWarnings=FALSE)
 
-	cpu <- sc5mc.cells_per_umi(smat)
-	fwrite(cpu, glue('{smat$tidy_cpgs_dir}/stats/cpu.csv'))
-	rpu <- sc5mc.reads_per_umi(smat, regions)	
-	fwrite(rpu, glue('{smat$tidy_cpgs_dir}/stats/rpu.csv'))
-
-	# tcpgs <- sc5mc.ontar_reads(smat, intervals)	
-	rpu_insert_length <- sc5mc.reads_per_umi_insert_length(smat, regions)
-	fwrite(rpu_insert_length, glue('{smat$tidy_cpgs_dir}/stats/rpu_insert_length.csv'))
-
-	if (!is.null(regions)){
-		ontar_stats <- sc5mc.frac_on_target(smat, regions)
-		fwrite(ontar_stats, glue('{smat$tidy_cpgs_dir}/stats/ontar_stats.csv'))
-
-		reg_stats_fn <- glue('{smat$tidy_cpgs_dir}/stats/regions_stats.csv')
-		reg_stats <- sc5mc.reads_per_region(smat, regions)	
-		fwrite(reg_stats, reg_stats_fn)	
+	if (!file.exists(cpu_fn) || overwrite){
+		cpu <- sc5mc.cells_per_umi(smat)
+		fwrite(cpu, cpu_fn)	
+	}
+	
+	if (!file.exists(rpu_fn) || overwrite){
+		rpu <- sc5mc.reads_per_umi(smat, regions)	
+		fwrite(rpu, rpu_fn)
 	}
 	
 
+	if (!file.exists(rpu_insert_length_fn) || overwrite){
+		rpu_insert_length <- sc5mc.reads_per_umi_insert_length(smat, regions)
+		fwrite(rpu_insert_length, rpu_insert_length_fn)
+	}
+
+	if (!is.null(regions)){
+		
+		if (!file.exists(ontar_stats_fn) || overwrite){
+			ontar_stats <- sc5mc.frac_on_target(smat, regions)			
+			fwrite(ontar_stats, ontar_stats_fn)
+		}
+
+		if (!file.exists(reg_stats_fn) || overwrite){
+			reg_stats <- sc5mc.reads_per_region(smat, regions)	
+			fwrite(reg_stats, reg_stats_fn)	
+		}
+	}
 }
+
+smat.raw_reads_stats <- function(smat, raw_reads_dir){
+	stats <- smat$stats
+	raw_fns <- map_df(unique(stats$illumina_index), ~ data.frame(illumina_index = .x, fn = list.files(file.path(raw_reads_dir, .x, 'raw'), full.names=TRUE, pattern='R1.*\\.fastq\\.gz')) )
+	
+	read_stats <- plyr::adply(raw_fns, 1, function(.x) {		
+		.x %>% mutate(read_num = system(glue('zcat {.x$fn} | sed -n 2~4p | wc -l'), intern=TRUE))
+	}, .parallel = TRUE)
+
+	read_stats <- read_stats %>% group_by(illumina_index) %>% summarise(illu_read_num = sum(as.numeric(read_num), na.rm=TRUE) )
+
+	stats <- stats %>% left_join(read_stats)
+
+	return(stats)
+}
+
+# count_dir_reads <- function(directory, illumina_index){
+# 	fastq_files <- list.files(file.path(directory, illumina_index, 'raw'), full.names=TRUE, pattern='R1.*\\.fastq\\.gz')
+# 	browser()
+
+# 	read_num <- system(glue('zcat {paste(fastq_files, collapse=" ")} | sed -n 2~4p | wc -l'), intern=TRUE)
+
+# }
 
 #' @export
 sc5mc.reads_per_cpg <- function(smat){
@@ -144,10 +230,40 @@ sc5mc.reads_per_cpg <- function(smat){
 }
 
 #' @export
-sc5mc.plot_reads_per_cpg <- function(smat){
-	stats <- sc5mc.reads_per_cpg(smat)
+sc5mc.plot_reads_per_cpg <- function(smat, color_column = NULL, colors = NULL, log_scale=FALSE){
+	if (class(smat) == 'smat'){
+		stats <- sc5mc.reads_per_cpg(smat)	
+	}
+
+	if (class(smat) == 'cgdb'){
+		stats <- smat@cells
+		if (length(groups(stats)) > 0){
+			color_column <- color_column %||% 'type'
+			stats <- stats %>% unite_(color_column, groups(stats))
+		}
+		if (has_name(stats, 'cg_num')){
+			stats$cpg_num <- stats$cg_num
+		}
+	}
+
+	p <- stats %>% ggplot(aes_string(x='total_reads', y='cpg_num', color=color_column)) + geom_point(size=0.5, shape=19) + stat_smooth(method='lm', se=F, linetype='dashed') + labs(subtitle = qq('median reads = @{comify(round(median(stats$total_reads, na.rm=TRUE)))}\nmedian cpgs = @{comify(round(median(stats$cpg_num, na.rm=TRUE)))}'))
+
+	if (log_scale){
+		p <- p + scale_y_log10(label=scales::scientific) + scale_x_log10(label=scales::scientific) + annotation_logticks()
+	} else {
+		p <- p + scale_y_continuous(label=scales::scientific) + scale_x_continuous(label=scales::scientific) + xlab('# of reads') + ylab('# of CpGs')
+	}	
 	
-	p <- stats %>% ggplot(aes(x=total_reads, y=cpg_num)) + geom_point(size=0.5, shape=19) + scale_y_continuous(label=comify) + scale_x_continuous(label=scales::comma) + xlab('# of reads') + ylab('# of CpGs') + stat_smooth(method='lm', se=F, linetype='dashed') + ggpmisc::stat_poly_eq(formula = y~ x, eq.with.lhs = "italic(hat(y))~`=`~", aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), size=2, color='darkred', parse = TRUE) + labs(subtitle = qq('median reads = @{comify(round(median(stats$total_reads, na.rm=TRUE)))}\nmedian cpgs = @{comify(round(median(stats$cpg_num, na.rm=TRUE)))}'))
+	if (!is.null(color_column)){
+		if (is.null(colors)){
+			p <- p + ggsci::scale_color_lancet()	
+		} else {
+			p <- p + scale_color_manual(values = colors)
+		}
+		
+	} else {
+		p <- p + ggpmisc::stat_poly_eq(formula = y~ x, eq.with.lhs = "italic(hat(y))~`=`~", aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), size=2, color='darkred', parse = TRUE)
+	}
 	return(p)	
 }
 
@@ -163,9 +279,20 @@ sc5mc.plot_conversion <- function(smat){
 
 
 sc5mc.plot_cpg_marginals_bars <- function(smat, cell_nums=c(2,5,10,20,30,50,80)){
-	mars <- smat.cpg_marginals(smat)
+	if (class(smat) == 'smat'){
+		mars <- smat.cpg_marginals(smat)
+		n_cells <- ncol(smat$cov)
+		n_cpgs <- nrow(smat$cov)
+	}
+
+	if (class(smat) == 'cgdb'){
+		mars <- smat %>% ungroup_cells() %>% ungroup_cpgs() %>% summarise_cells() %>% filter(cov > 0) %>% select(cells=cov)
+		n_cells <- nrow(smat@cells)
+		n_cpgs <- nrow(smat@cpgs)
+	}		
+
 	p <- purrr::map_dfr(cell_nums, ~ tibble(k=.x, cpgs=sum(mars$cells >= .x))) %>%
-		ggplot(aes(x=factor(k), y=log10(cpgs))) + geom_col(width=0.7, fill='darkblue') + scale_y_continuous(labels=comify) + ylab('log10(CpGs with # cells >= x)') + xlab('cells') + labs(subtitle = qq('number of cells = @{comify(ncol(smat$cov))}\nnumber of cpgs = @{comify(nrow(smat$cov))}'))
+		ggplot(aes(x=factor(k), y=cpgs)) + geom_col(width=0.7, fill='darkblue') + ylab('CpGs with # cells >= x') + scale_y_log10(labels=comify) + xlab('cells') +labs(subtitle = qq('number of cells = @{comify(n_cells)}\nnumber of cpgs = @{comify(n_cpgs)}'))
 	return(p)
 }
 
@@ -200,6 +327,25 @@ sc5mc.plot_cpg_marginals <- function(smat, type='percent'){
 	p <- p + labs(subtitle = qq('number of cells = @{comify(n_cells)}\nnumber of cpgs = @{comify(n_cpgs)}')) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))
 	return(p)
 }
+
+sc5mc.plot_cell_marginals_bars <- function(smat, cpg_nums = c(500, 1000, 5000, 10000, 5e4, 8e4, 1e5, 1.5e5, 2e5)){
+	if (class(smat) == 'smat'){
+		cell_mars <- smat.cell_marginals(smat) %>% filter(cov > 0) %>% select(cov)
+		n_cells <- ncol(smat$cov)
+		n_cpgs <- nrow(smat$cov)
+	} 
+
+	if (class(smat) == 'cgdb'){
+		cell_mars <- smat %>% ungroup_cells() %>% ungroup_cpgs() %>% summarise_cpgs() %>% filter(cov > 0) %>% select(cov)
+		n_cells <- nrow(smat@cells)
+		n_cpgs <- nrow(smat@cpgs)		
+	}
+
+	p <- purrr::map_dfr(cpg_nums, ~ tibble(k=.x, cpgs=sum(cell_mars$cov >= .x))) %>% ggplot(aes(x=factor(k), y=cpgs)) + geom_col(width=0.7, fill='darkblue') + ylab('cells with # CpGs >= x') + xlab('CpGs') + scale_x_discrete(labels=function(x) scales::comma(as.numeric(x))) + labs(subtitle = qq('number of cells = @{comify(n_cells)}\nnumber of cpgs = @{comify(n_cpgs)}'))
+	return(p)
+}
+
+
 
 #' plot cell marginals
 #' 
@@ -274,28 +420,50 @@ sc5mc.plot_cg_pairs_coverage <- function(smat, min_cells=30){
 #' @param width figure width (ggsave parameter)
 #' @param height figure height (ggsave parameter)
 #' @param cells_per_umi plot cells per umi
+#' @param return_plotlist return a list of plots
 #' 
 #' @return plots of total reads, %mapping and %unique 
 #'
 #' @export
-sc5mc.index_plots <- function(smat, ofn, width=7*2.5, height=5*2.3, cells_per_umi=FALSE){
+sc5mc.index_plots <- function(smat, ofn=NULL, width=7*2.5, height=5*2.3, cells_per_umi=FALSE, return_plotlist=FALSE, min_reads=1e3){
 	stats <- smat$stats
     stats <- stats %>% mutate(row = factor(row, levels= rev(sort(unique(as.character(row))))), column = factor(column, levels=sort(unique(as.numeric(column)))))
+    stats <- stats %>% mutate(batch_id = ifelse(empty, 'empty', batch_id), batch_id = factor(batch_id, levels = c(paste0('batch', 1:4), 'empty')))
 
-    p_frac_mapped <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=mapped_frac)) + geom_tile(size=0.5)+ scale_color_manual(values=rev(c('red', 'gray'))) + scale_fill_gradientn(colors=c('white', 'darkgreen')) + guides(color=F) 
+    stats <- stats %>% mutate(read_per_cpg = total_reads / cg_num)
+    
+    # p_frac_mapped <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=mapped_frac)) + geom_tile(size=0.5)+ scale_color_manual(values=rev(c('red', 'gray'))) + scale_fill_gradientn(colors=c('white', 'darkgreen')) + guides(color=F) 
 
-    p_tot_reads <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=log10(total_reads))) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'white', 'red')) + guides(color=F) 
+    p_cpg_num <- stats %>% mutate(cg_num = ifelse(total_reads >= 1e3, cg_num, NA), cg_num = ifelse(cg_num >= 1e6, 1e6, cg_num)) %>% ggplot(aes(x=column, y=row, color=empty, fill=log10(cg_num))) + geom_tile(size=0.5)+ scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'white', 'red', 'yellow'), limits=c(1, 6)) + guides(color=F) 
 
-    p_uniq_frac <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=uniq_frac)) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'red')) + guides(color=F) 
+    p_tot_reads <- stats %>% mutate(total_reads = ifelse(total_reads >= 1e3, total_reads, NA), total_reads = ifelse(total_reads >= 5e6, 5e6, total_reads)) %>% ggplot(aes(x=column, y=row, color=empty, fill=log10(total_reads))) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'white', 'red', 'yellow'), limits=c(3, log10(5e6))) + guides(color=F) 
+
+    p_read_per_cpg <- stats %>% mutate(read_per_cpg = ifelse(total_reads >= 1e3, read_per_cpg, NA)) %>% ggplot(aes(x=column, y=row, color=empty, fill=log2(read_per_cpg))) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'white', 'red')) + guides(color=F) 
+
+    # p_uniq_frac <- stats %>% ggplot(aes(x=column, y=row, color=empty, fill=uniq_frac)) + geom_tile(size=0.5) + scale_color_manual(values=rev(c('black', 'gray'))) + scale_fill_gradientn(colors=c('white', 'red')) + guides(color=F) 
+
+    batch_colors <- c('#e41a1c','#377eb8','#4daf4a','#984ea3', 'black')
+    p_batches <- stats %>% ggplot(aes(x=column, y=row, fill=batch_id)) + geom_tile(size=0.5) + scale_fill_manual(values=batch_colors, drop=FALSE)
+
+    
+    if (return_plotlist){
+    	return(list(p_batches = p_batches, p_tot_reads=p_tot_reads, p_cpg_num=p_cpg_num, p_read_per_cpg=p_read_per_cpg))
+    }
 
     if (cells_per_umi){
     	p_cells_per_umi <- sc5mc.plot_cells_per_umi(smat)	
-    	p <- cowplot::plot_grid(p_tot_reads, p_uniq_frac, p_frac_mapped, p_cells_per_umi, align='hv', ncol=2) 
+    	p <- cowplot::plot_grid(p_batches, p_tot_reads, p_cpg_num, p_read_per_cpg, p_cells_per_umi, align='hv', ncol=2) 
     } else {
-    	p <- cowplot::plot_grid(p_tot_reads, p_uniq_frac, p_frac_mapped, align='hv', ncol=2) 
+    	p <- cowplot::plot_grid(p_batches, p_tot_reads, p_cpg_num, p_read_per_cpg, align='hv', ncol=2) 
     }    
 
-    p + ggsave(ofn, width=width, height=height)
+    if (!is.null(ofn)){
+    	p <- p + ggsave(ofn, width=width, height=height)	
+    }
+
+    return(p)
+
+    
 }
 
 #' Calculates cells per UMI
@@ -311,7 +479,7 @@ sc5mc.cells_per_umi <- function(smat){
 		smat <- smat.get_tidy_cpgs(smat, unique=FALSE)
 	}
 	message("Calculating reads per UMI")
-	tcpgs <- smat$tidy_cpgs  %>% distinct(read_id, .keep_all=TRUE) %>% select(cell_id, read_id, chrom, start, end, strand, umi1, umi2, insert_len)
+	tcpgs <- smat$tidy_cpgs_all %>% distinct(read_id, .keep_all=TRUE) %>% select(cell_id, read_id, chrom, start, end, strand, umi1, umi2, insert_len)
 	cpu <- tcpgs %>% filter(end != '-') %>% group_by(chrom, start, end) %>% summarise(n = n(), n_cells=n_distinct(cell_id)) %>% ungroup()
 	cpu <- cpu %>% group_by(n_cells) %>% summarise(n = n()) %>% mutate(p = n / sum(n))
 	return(cpu)	 
@@ -329,7 +497,7 @@ sc5mc.plot_cells_per_umi <- function(smat){
 	if (file.exists(cpu_fn)){
 		cpu <- fread(cpu_fn) %>% as_tibble()
 	} else {
-		cpu <- sc5mc.cells_per_umi(smat)	
+		cpu <- sc5mc.cells_per_umi(smat)					
 	}	
 	p <- cpu %>% filter(n_cells > 1) %>% ggplot(aes(x=factor(n_cells), y=p)) + geom_col(fill='darkblue') + scale_y_continuous(labels=scales::percent) + xlab('# of cells') + ylab('% of molecules') + labs(subtitle='') + coord_cartesian(ylim=c(0,0.01))
 	return(p)
@@ -366,7 +534,7 @@ sc5mc.plot_reads_per_umi <- function(smat, intervals=NULL){
 	if (file.exists(rpu_fn)){
 		rpu <- fread(rpu_fn) %>% as_tibble()
 	} else {
-		rpu <- sc5mc.reads_per_umi(smat, intervals)
+		rpu <- sc5mc.reads_per_umi(smat, intervals)		
 	}
 	
 	rpu <- rpu %>% 
@@ -390,7 +558,7 @@ sc5mc.plot_insert_length_reads_per_umi <- function(smat, intervals=NULL){
 	if (file.exists(rpu_fn)){
 		rpu <- fread(rpu_fn) %>% as_tibble()
 	} else {
-		rpu <- sc5mc.reads_per_umi_insert_length(smat, intervals)
+		rpu <- sc5mc.reads_per_umi_insert_length(smat, intervals)		
 	}	
  	p <- rpu %>% ggplot(aes(x=abs(insert_len), color=reads)) + geom_density(size=0.9) + xlab('Insert length') +ylab('Density') + ggsci::scale_color_aaas(name = 'Reads / UMI') + theme(axis.text.x = element_text(angle = 0, hjust = 0, vjust=0.5), legend.position = c(0.8, 0.8), legend.box.background = element_rect()) + coord_cartesian(xlim=c(0,450)) + guides(color=guide_legend(keywidth=0.5, keyheight=0.5))
 	

@@ -181,7 +181,7 @@ smat.from_df <- function(df, name='', description='', intervs=NULL){
 
 
 # Utils
-.tidy_calls2smat <- function(tidy_calls, column_name='track', intervs=NULL){         
+.tidy_calls2smat <- function(tidy_calls, column_name='track', intervs=NULL){             
     message('creating intervs')  
     if (!is.null(intervs)){
         intervs <- intervs %>% arrange(chrom, start, end) %>% mutate(id = 1:n())
