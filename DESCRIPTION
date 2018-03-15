@@ -10,7 +10,8 @@ Depends:
     R (>= 3.2.2),
     misha (>= 3.5.4),
     gpatterns
-Imports:	
+Imports:
+	methods,
 	Matrix,	
 	tibble,	
 	dplyr,		
@@ -27,10 +28,14 @@ Imports:
 	memoise,
 	yaml,
 	flock,
-    Rcpp
+    Rcpp,
+    zeallot
 Remotes: bitbucket::tanaylab/tglkmeans@default
 License: GPL
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
 LinkingTo: Rcpp
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

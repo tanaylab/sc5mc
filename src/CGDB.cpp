@@ -99,7 +99,7 @@ DataFrame CGDB::bin_meth(const IntegerVector& idxs, const IntegerVector& bins, c
 	}
 
     std::vector<double> bins_vec(bins.begin(), bins.end());
-     std::vector<double> bins_full(m_CPG_NUM+1, 0);   
+    std::vector<double> bins_full(m_CPG_NUM+1, 0);   
  
     vdUnpackV(idxs.length(), &bins_vec[0], &bins_full[0], idxs.begin());
  
@@ -216,7 +216,7 @@ DataFrame CGDB::extract_sparse_all(const std::vector<std::string>& cells){
         tot_cpgs += get_cell_ncpgs(cells[i]);
     }
 
-    std::vector<float> idxs_vec(tot_cpgs, 0);
+    std::vector<int> idxs_vec(tot_cpgs, 0);
     std::vector<float> cov_vec(tot_cpgs, 0);
     std::vector<float> meth_vec(tot_cpgs, 0);
     std::vector<std::string > cells_vec(tot_cpgs);
@@ -235,6 +235,7 @@ DataFrame CGDB::extract_sparse_all(const std::vector<std::string>& cells){
         float* cell_cov = NULL;        
         
         unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
+
         if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
 
             std::copy(cell_idx, cell_idx + ncpgs, idx_iter);
@@ -266,7 +267,7 @@ DataFrame CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std:
 
     std::vector<std::vector<float> > cov_mat(cells.size(), std::vector<float>());
     std::vector<std::vector<float> > meth_mat(cells.size(), std::vector<float>());
-    std::vector<std::vector<float> > idxs_mat(cells.size(), std::vector<float>());
+    std::vector<std::vector<int> > idxs_mat(cells.size(), std::vector<int>());
     std::vector<std::vector<std::string > > cell_mat(cells.size(), std::vector<std::string>());
 
     ProgressReporter progress;
@@ -289,7 +290,7 @@ DataFrame CGDB::extract_sparse(const IntegerVector& idxs, const std::vector<std:
             // gather cell coverage 
             vsPackV(idxs.length(), &all_cov[0], &all_idxs[0], &all_cell_cov[0]);
             
-            // scatter cell methyaltion to all_cov
+            // scatter cell methylation to all_meth
             vsUnpackV(ncpgs, cell_met, &all_meth[0], cell_idx);
             
             // gather cell methylation 
@@ -358,7 +359,7 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
         	// clean all_cov vector
         	cblas_sscal(all_cov.size(), 0, &all_cov[0], 1);
         	
-        	// scatter cell methylation to all_cov
+        	// scatter cell methylation to all_meth
         	vsUnpackV(ncpgs, cell_met, &all_meth[0], cell_idx);
 
         	// gather cell methylation in idxs to result 2d array meth
@@ -382,6 +383,7 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
 	res["meth"] = meth_mat;
 	return res;	
 }
+
 
 ////////////////////////////////////////////////////////////////////////
 std::vector<std::string> CGDB::list_open_cells(){
