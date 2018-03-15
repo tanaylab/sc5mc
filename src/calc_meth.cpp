@@ -58,6 +58,22 @@ List bin_meth_per_cell_cpp(SEXP cgdb, const IntegerVector& idxs, const IntegerVe
 
 ////////////////////////////////////////////////////////////////////////
 // [[Rcpp::export]]
+std::vector<int> count_pairs_cpp(SEXP cgdb, const IntegerVector& idxs, const std::string& cell1, const std::string& cell2){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    std::vector<int> res(4, 0);
+    ptr->count_pairs(idxs, cell1, cell2, res);
+    return(res);   
+}
+
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
+NumericMatrix count_pairs_all_cpp(SEXP cgdb, const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->count_pairs_all(idxs, cells1, cells2));   
+}
+
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
 void freemem_cpp(SEXP cgdb){
     Rcpp::XPtr<CGDB> ptr(cgdb);
     return(ptr->freemem());

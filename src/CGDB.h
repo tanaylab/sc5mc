@@ -68,6 +68,9 @@ class CGDB {
         DataFrame extract_sparse_all(const std::vector<std::string>& cells);
 
         std::vector<std::string> list_open_cells();
+
+        NumericMatrix count_pairs_all(const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2);
+        std::vector<int> count_pairs(const IntegerVector& idxs, const std::string& cell1, const std::string& cell2, std::vector<int>& counts);
 };
 
 

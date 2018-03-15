@@ -1,9 +1,20 @@
+#' @export
 sc5mc.get_indexes_file <- function(version='bravo'){
 	system.file(glue('config/indexes/{version}.yaml'), package='sc5mc')
 }
 
 sc5mc.get_config_file <- function(){
 	system.file(glue('config/config.yaml'), package='sc5mc')
+}
+
+#' @export
+sc5mc.dump_config_file <- function(filename){
+	file.copy(sc5mc.get_config_file(), filename)
+}
+
+#' @export
+sc5mc.dump_minimal_config <- function(filename){
+	file.copy(system.file(glue('config/minimal_config.yaml'), package='sc5mc'), filename)
 }
 
 sc5mc.get_defaults_file <- function(){
