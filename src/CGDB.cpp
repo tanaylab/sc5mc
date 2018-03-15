@@ -384,6 +384,111 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
 	return res;	
 }
 
+NumericMatrix CGDB::count_pairs_all(const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2){
+
+    std::vector<std::vector<int> > counts(cells1.size(), std::vector<int>(4, 0));
+
+    ProgressReporter progress;
+    progress.init(cells1.size(), 1);
+    for (unsigned i=0; i < cells1.size(); i++){
+        count_pairs(idxs, cells1[i], cells2[i], counts[i]);
+        progress.report(1);
+    }
+    progress.report_last();
+
+    Function rbind("rbind");
+    Function do_call("do.call");
+    NumericMatrix counts_mat = do_call(rbind, wrap(counts));
+    return(counts_mat);
+}
+
+std::vector<int> CGDB::count_pairs(const IntegerVector& idxs, const std::string& cell1, const std::string& cell2, std::vector<int>& counts){
+
+    // get cell1 data
+    int* cell1_idx = NULL;
+    float* cell1_met = NULL;
+    float* cell1_cov = NULL;
+    unsigned ncpgs1 = get_cell_data(cell1, cell1_idx, cell1_met, cell1_cov);
+
+    // get cell2 data
+    int* cell2_idx = NULL;
+    float* cell2_met = NULL;
+    float* cell2_cov = NULL;
+    unsigned ncpgs2 = get_cell_data(cell2, cell2_idx, cell2_met, cell2_cov);
+
+    std::vector<float> all_cov(m_CPG_NUM+1, 0); 
+    std::vector<float> all_meth(m_CPG_NUM+1, 0);
+    std::vector<int> all_idxs = as<std::vector<int> >(idxs);   
+
+    std::vector<float> all_cell_cov(idxs.length(), 0);
+    std::vector<float> all_cell_meth(idxs.length(), 0);    
+
+    std::vector<float> cov1_vec;
+    std::vector<float> meth1_vec;
+    std::vector<int> idxs1_vec;
+
+    if ((cell1_idx != NULL) && (cell1_met != NULL) && (cell1_cov != NULL) && (cell2_idx != NULL) && (cell2_met != NULL) && (cell2_cov != NULL)) {
+
+        // scatter cell1 coverage to all_cov
+        vsUnpackV(ncpgs1, cell1_cov, &all_cov[0], cell1_idx);        
+
+        // gather cell1 coverage 
+        vsPackV(idxs.length(), &all_cov[0], &all_idxs[0], &all_cell_cov[0]);
+        
+        // scatter cell1 methylation to all_meth
+        vsUnpackV(ncpgs1, cell1_met, &all_meth[0], cell1_idx);
+        
+        // gather cell methylation 
+        vsPackV(idxs.length(), &all_meth[0], &all_idxs[0], &all_cell_meth[0]);
+        
+        for (unsigned j=0; j < all_cell_cov.size(); ++j){
+            if (all_cell_cov[j] > 0){                
+                cov1_vec.push_back(all_cell_cov[j]);
+                idxs1_vec.push_back(idxs[j]);
+                meth1_vec.push_back(all_cell_meth[j]);
+            }
+        }
+        
+        // clean all_meth vector
+        cblas_sscal(all_meth.size(), 0, &all_meth[0], 1);  
+        cblas_sscal(all_cell_meth.size(), 0, &all_cell_meth[0], 1);    
+        cblas_sscal(all_cov.size(), 0, &all_cov[0], 1);
+        cblas_sscal(all_cell_cov.size(), 0, &all_cell_cov[0], 1);  
+
+        // scatter cell2 coverage to all_cov
+        vsUnpackV(ncpgs2, cell2_cov, &all_cov[0], cell2_idx);      
+
+        // scatter cell2 methylation to all_meth
+        vsUnpackV(ncpgs2, cell2_met, &all_meth[0], cell2_idx);  
+
+        std::vector<float> cov2_vec(cov1_vec.size(), 0);
+        std::vector<float> meth2_vec(meth1_vec.size(), 0);
+
+        // gather cell2 coverage according to cell1 indexes
+        vsPackV(idxs1_vec.size(), &all_cov[0], &idxs1_vec[0], &cov2_vec[0]);
+
+        // gather cell2 methylation according to cell1 indexes
+        vsPackV(idxs1_vec.size(), &all_meth[0], &idxs1_vec[0], &meth2_vec[0]);
+
+        
+        // count pairs
+        for (unsigned i=0; i < idxs1_vec.size(); ++i){
+            if (cov1_vec[i] > 0 && cov2_vec[i] > 0){
+                if (meth1_vec[i] == 0 && meth2_vec[i] == 0){
+                    counts[0]++;
+                } else if (meth1_vec[i] == 0 && meth2_vec[i] == 1){
+                    counts[1]++;
+                } else if (meth1_vec[i] == 1 && meth2_vec[i] == 0){
+                    counts[2]++;
+                } else if (meth1_vec[i] == 1 && meth2_vec[i] == 1){
+                    counts[3]++;
+                }
+            }
+        }      
+    }
+
+    return(counts);
+}
 
 ////////////////////////////////////////////////////////////////////////
 std::vector<std::string> CGDB::list_open_cells(){

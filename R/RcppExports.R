@@ -25,6 +25,14 @@ bin_meth_per_cell_cpp <- function(cgdb, idxs, bins, cells) {
     .Call('_sc5mc_bin_meth_per_cell_cpp', PACKAGE = 'sc5mc', cgdb, idxs, bins, cells)
 }
 
+count_pairs_cpp <- function(cgdb, idxs, cell1, cell2) {
+    .Call('_sc5mc_count_pairs_cpp', PACKAGE = 'sc5mc', cgdb, idxs, cell1, cell2)
+}
+
+count_pairs_all_cpp <- function(cgdb, idxs, cells1, cells2) {
+    .Call('_sc5mc_count_pairs_all_cpp', PACKAGE = 'sc5mc', cgdb, idxs, cells1, cells2)
+}
+
 freemem_cpp <- function(cgdb) {
     invisible(.Call('_sc5mc_freemem_cpp', PACKAGE = 'sc5mc', cgdb))
 }

@@ -84,6 +84,34 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// count_pairs_cpp
+std::vector<int> count_pairs_cpp(SEXP cgdb, const IntegerVector& idxs, const std::string& cell1, const std::string& cell2);
+RcppExport SEXP _sc5mc_count_pairs_cpp(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP cell1SEXP, SEXP cell2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type cell1(cell1SEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type cell2(cell2SEXP);
+    rcpp_result_gen = Rcpp::wrap(count_pairs_cpp(cgdb, idxs, cell1, cell2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// count_pairs_all_cpp
+NumericMatrix count_pairs_all_cpp(SEXP cgdb, const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2);
+RcppExport SEXP _sc5mc_count_pairs_all_cpp(SEXP cgdbSEXP, SEXP idxsSEXP, SEXP cells1SEXP, SEXP cells2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type idxs(idxsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type cells1(cells1SEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type cells2(cells2SEXP);
+    rcpp_result_gen = Rcpp::wrap(count_pairs_all_cpp(cgdb, idxs, cells1, cells2));
+    return rcpp_result_gen;
+END_RCPP
+}
 // freemem_cpp
 void freemem_cpp(SEXP cgdb);
 RcppExport SEXP _sc5mc_freemem_cpp(SEXP cgdbSEXP) {
@@ -128,6 +156,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_extract_sc_data_sparse", (DL_FUNC) &_sc5mc_extract_sc_data_sparse, 3},
     {"_sc5mc_extract_sc_data_sparse_all", (DL_FUNC) &_sc5mc_extract_sc_data_sparse_all, 2},
     {"_sc5mc_bin_meth_per_cell_cpp", (DL_FUNC) &_sc5mc_bin_meth_per_cell_cpp, 4},
+    {"_sc5mc_count_pairs_cpp", (DL_FUNC) &_sc5mc_count_pairs_cpp, 4},
+    {"_sc5mc_count_pairs_all_cpp", (DL_FUNC) &_sc5mc_count_pairs_all_cpp, 4},
     {"_sc5mc_freemem_cpp", (DL_FUNC) &_sc5mc_freemem_cpp, 1},
     {"_sc5mc_list_open_cells", (DL_FUNC) &_sc5mc_list_open_cells, 1},
     {"_sc5mc_shuffle_mat_marginals", (DL_FUNC) &_sc5mc_shuffle_mat_marginals, 3},

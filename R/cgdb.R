@@ -1,4 +1,3 @@
-
 check_cgdb <- function(object){
     errors <- character()
     if (!all(has_name(object@cpgs, c('chrom', 'start', 'end', 'id')))){
@@ -21,16 +20,16 @@ check_cgdb <- function(object){
 }
 
 cgdb_validate_cells <- function(db){
-    db_cells <- list.files(file.path(db@db_root, 'data') , recursive=TRUE, pattern='*.idx.bin$') %>% gsub('\\.idx\\.bin', '', .) %>%  gsub('/', '.', .)
+    db_cells <- list.files(file.path(db@db_root, 'data') , recursive=TRUE, pattern='*.idx.bin$') %>% gsub('\\.idx\\.bin', '', .) %>% gsub('/', '.', .)
 
     if (any(!(db@cells$cell_id %in% db_cells))){
         cells <- db@cells$cell_id[!(db@cells$cell_id %in% db_cells)]
-        stop(glue('the following cells do not exist in the db: {paste(cells, collapse=", ")}'))     
+        stop(glue('the following {length(cells)} cells do not exist in the db: {paste(cells, collapse=", ")}'))    
     }
 
     if (any(!(db_cells %in% db@cells$cell_id))){
         cells <- db_cells[!(db_cells %in% db@cells$cell_id)]
-        warning(glue('the following cells exist in the db but do not exist in db@cells: {paste(cells, collapse=", ")}'))     
+        warning(glue('the following {length(cells)} cells exist in the db but do not exist in db@cells: {paste(cells, collapse=", ")}'))     
     }
     invisible(db_cells)
 }
@@ -359,6 +358,7 @@ extract.cgdb <- function(.Object, cells=NULL, cpgs=NULL, tidy=FALSE){
     }
     
     res <- extract_sc_data(.Object@.xptr, cpgs$id, cells)
+
     res$cov <- bind_cols(cpgs %>% select(chrom, start, end), res$cov %>% as_tibble() %>% set_names(cells) )
     res$meth <- bind_cols(cpgs %>% select(chrom, start, end), res$meth %>% as_tibble() %>% set_names(cells) )
     
@@ -425,7 +425,6 @@ summarise.cgdb <- function(.Object, tidy=TRUE){
         res <- as_tibble(res)  
     }
     
-
     return(res)
 }
 
@@ -484,6 +483,57 @@ summarise_by_both_groups <- function(db){
     cpgs$bin <- bins
     
     res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% ungroup() 
+    return(res)
+}
+
+#' Summarise for intervals set
+#' 
+#' @param db cgdb object
+#' @param intervals intervals set to summarise the genome with. Numeric values would calculate
+#' the summary for equally sized bins. 
+#' 
+#' @return coverage and methylated calls for the intervals set. 
+#' 
+#' @export
+summarise_intervals <- function(db, intervals){
+    if (is.numeric(intervals)){
+        intervals <- giterator.intervals(iterator=intervals)
+    }
+
+    res <- db %>% 
+        gintervals.neighbors_cpgs(intervals) %>% 
+        group_by_cpgs(chrom1, start1, end1) %>% 
+        summarise()
+    res <- res %>% rename(chrom = chrom1, start = start1, end = end1)
+    return(res)
+}
+
+
+#' Calculate number of cells per interval
+#' 
+#' @param db cgdb object
+#' @param intervals intervals set to summarise the genome with. Numeric values would calculate
+#' the number of cells for equally sized bins. 
+#' @param min_cov minimal coverage per cell
+#' 
+#' @return number of cells that were covered (coverage >= \code{min_cov}) for the intervals set. 
+#' 
+#' @export
+intervals_cell_cov <- function(db, intervals, min_cov=1){
+    if (is.numeric(intervals)){
+        intervals <- giterator.intervals(iterator=intervals)
+    }    
+
+    bin_intervs <- db %>% gintervals.neighbors_cpgs(intervals) %>% .@cpgs %>% group_by(chrom1, start1, end1)  
+    bins <- bin_intervs %>% group_indices() 
+
+    bin_intervs <- bin_intervs %>% ungroup() %>% mutate(bin = bins) %>% distinct(chrom1, start1, end1, bin) %>% select(chrom=chrom1, start=start1, end=end1)
+   
+    cov_tab <- bin_meth_per_cell_cpp(db@.xptr, db@cpgs$id, bins, db@cells$cell_id)$cov      
+    colnames(cov_tab) <- db@cells$cell_id
+    cov_tab <- cov_tab >= min_cov
+
+    res <- db@cells %>% do(mutate(bin_intervs, cell_cov = rowSums(cov_tab[, .$cell_id])[-1])) %>% ungroup()
     return(res)
 }
 
@@ -633,12 +683,41 @@ filter_by_cov <- function(db, min_cpgs=0, max_cpgs=Inf, min_cells=0, max_cells=I
     return(db)
 }
 
+#' Filter cgdb object by cpgs average methylation
+#'
+#' @param db smat object
+#'
+#' @param min_avg minimal average methylation per CpG
+#' @param max_avg maximal average methylation per CpG
+#' @param min_cov minimal coverage per CpG
+#' @param max_cov maximal coverage per CpG
+#'
+#' @export
+filter_by_avg <- function(db, min_avg=0, max_avg=1, min_cov=1, max_cov=Inf){
+    if (min_avg > 0 || max_avg < 1){
+        cpg_mars <- db %>% ungroup() %>% summarise_cells()
+        ids <- cpg_mars %>% 
+            mutate(avg = meth / cov) %>% 
+            filter(cov >= min_cov, cov <= max_cov, avg >= min_avg, avg <= max_avg) %>% 
+            pull(id)  
+    } else {
+        ids <- db@cpgs$id
+    }
+
+    db <- db %>% filter_cpgs(id %in% ids)
+    return(db)    
+}
+
+#' Filter CpGs by genomic intervals
 #' 
 #' @inheritDotParams gpatterns::gintervals.filter
 #' @export
 filter_intervals <- function(db, intervals, ...){
     opt <- options(gmax.data.size=1e9)
-    on.exit(options(opt))
+    on.exit(options(opt))    
+    if (is.data.frame(intervals)){
+        intervals <- ungroup(intervals)    
+    }    
     db@cpgs <- db@cpgs %>% gintervals.filter(intervals)    
     return(db)
 }
@@ -687,6 +766,20 @@ select_cells <- function(db, ...){
     db@cells <- db@cells %>% select(...)    
     return(db)
 }
+
+# rename
+#' @export
+rename_cpgs <- function(db, ...){
+    db@cpgs <- db@cpgs %>% rename(...)    
+    return(db)
+}
+
+#' @export
+rename_cells <- function(db, ...){
+    db@cells <- db@cells %>% rename(...)    
+    return(db)
+}
+
 
 # left_join
 #' @export
@@ -744,4 +837,28 @@ cgdb_info <- function(db){
     print(db@cells)
     message('\n--- CpGs (@cpgs):')
     print(db@cpgs)
+}
+
+#' Count methylation calls (00,01,10,11) for pairs of cells
+#' 
+#' @param db cgdb object
+#' 
+#' @return data frame with the following fields: cell1, cell2, n00, n01, n10, n11
+#' 
+#' @export
+count_pairs <- function(db){
+    db <- db %>% filter_by_cov(min_cells=2)
+
+    cell_pairs <- t(combn(db@cells$cell_id, 2)) %>% as_tibble() %>% set_names(c('cell1', 'cell2'))
+
+    nbins <- getOption('gpatterns.parallel.thread_num')
+
+    cell_pairs <- cell_pairs %>% mutate(chunk = ntile(cell1, nbins))
+    
+    pairs_meth <- plyr::ddply(cell_pairs, plyr::.(chunk), function(x) count_pairs_all_cpp(db@.xptr, db@cpgs$id, x$cell1, x$cell2) %>% as_tibble() %>% set_names(c('n00', 'n01', 'n10', 'n11')), .parallel = TRUE )  %>% select(-chunk)
+  
+    pairs_meth <- bind_cols(cell_pairs, pairs_meth) %>% select(-chunk)
+
+  
+    return(pairs_meth)    
 }
