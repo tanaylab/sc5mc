@@ -847,18 +847,50 @@ cgdb_info <- function(db){
 #' 
 #' @export
 count_pairs <- function(db){
+    max_chunk_size <- 100
     db <- db %>% filter_by_cov(min_cells=2)
 
     cell_pairs <- t(combn(db@cells$cell_id, 2)) %>% as_tibble() %>% set_names(c('cell1', 'cell2'))
+    cell_pairs <- arrange(cell_pairs, cell1, cell2)
 
-    nbins <- getOption('gpatterns.parallel.thread_num')
+    cells <- tibble(cell = db@cells$cell_id, chunk = ntile(cell, round(length(cell) / max_chunk_size)))
+        
+    pairs <- plyr::dlply(cells, plyr::.(chunk), function(x) {        
+        message('extracting')
+        smat <- extract_sc_data(db@.xptr, db@cpgs$id, x$cell)    
+        
+        message('arranging')
+        colnames(smat$cov) <- x$cell
+        colnames(smat$meth) <- x$cell
+        message('creating unmeth matrix')
+        smat$unmeth <- smat$cov - smat$meth        
+        message('calculating pairs')
+        pairs_meth <- sc5mc.calc_pdiff(smat, min_cgs=0) %>% select(cell1, cell2, n00, n01, n10, n11)
+        return(pairs_meth)
+    }, .parallel = TRUE)
 
-    cell_pairs <- cell_pairs %>% mutate(chunk = ntile(cell1, nbins))
+    pairs <- map_df(pairs, ~.x) 
     
-    pairs_meth <- plyr::ddply(cell_pairs, plyr::.(chunk), function(x) count_pairs_all_cpp(db@.xptr, db@cpgs$id, x$cell1, x$cell2) %>% as_tibble() %>% set_names(c('n00', 'n01', 'n10', 'n11')), .parallel = TRUE )  %>% select(-chunk)
-  
-    pairs_meth <- bind_cols(cell_pairs, pairs_meth) %>% select(-chunk)
+    cell_pairs <- cell_pairs %>% anti_join(pairs, by=c('cell1', 'cell2')) %>% arrange(cell1, cell2)
+    message(glue('remaining {nrow(cell_pairs)}'))
+    
+    if (nrow(cell_pairs) > 0){
+        nbins <- getOption('gpatterns.parallel.thread_num')
 
-  
+        cell_pairs <- cell_pairs %>%
+            mutate(chunk = ntile(cell1, nbins)) %>% 
+            group_by(cell1) %>% 
+            mutate(chunk = first(chunk)) %>%
+            ungroup()
+        
+        pairs_meth <- plyr::ddply(cell_pairs, plyr::.(chunk), function(x) count_pairs_all_cpp(db@.xptr, db@cpgs$id, x$cell1, x$cell2) %>% as_tibble() %>% set_names(c('n00', 'n01', 'n10', 'n11')), .parallel = TRUE )  %>% select(-chunk)
+       
+        pairs_meth <- bind_cols(cell_pairs, pairs_meth) %>% select(-chunk)
+        pairs_meth <- bind_rows(pairs_meth, rename(pairs_meth, cell1 = cell2, cell2 = cell1))
+        pairs_meth <- bind_rows(pairs, pairs_meth)
+    } else {
+        pairs_meth <- pairs
+    }
+
     return(pairs_meth)    
 }

@@ -1,0 +1,16 @@
+experiment: my_experiment
+plate_id: my_plate_id
+description: blah blah
+
+exp_indexes: 
+  batch1: ['index1', 'illumina_index']
+  batch2: ['index1', 'illumina_index']
+  batch3: ['index1', 'illumina_index']
+  batch4: ['index1', 'illumina_index']
+
+genome: mm9
+
+pipeline_steps:
+  - demultiplexing
+  - mapping
+  - bam2smat
