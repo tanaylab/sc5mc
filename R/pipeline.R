@@ -172,11 +172,22 @@ yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/
 
     for (i in 1:length(yml$exp_indexes)){
         idx <- names(yml$exp_indexes)[i]
-        vars <- yml$exp_indexes[[i]]            
-        bcds$index <- gsub(glue('_{yml$pbat2_vars[[idx]]}_'), glue('_{vars[1]}_'), bcds$index)
-        bcds$index <- gsub(glue('_{yml$illumina_vars[[idx]]}$'), glue('_{vars[2]}'), bcds$index)
-    }
+        vars <- yml$exp_indexes[[i]] 
 
+        bcds$index <- gsub(glue('_{yml$pbat2_vars[[idx]]}_'), glue('_{vars[1]}_'), bcds$index)
+
+        if (is.list(vars[2])){
+        	illu_indexes <- vars[2][[1]]
+        	stopifnot(length(yml$illumina_vars[[idx]]) == length(illu_indexes))
+        	for (j in 1:length(illu_indexes)){
+        		bcds$index <- gsub(glue('_{yml$illumina_vars[[idx]][j]}$'), glue('_{illu_indexes[j]}'), bcds$index)		
+        	}        	
+        } else {
+        	bcds$index <- gsub(glue('_{yml$illumina_vars[[idx]]}$'), glue('_{vars[2]}'), bcds$index)	
+        }
+        
+    }
+    
     bcds <- bcds %>% left_join(all_bcds %>% mutate(orig = TRUE)) %>% mutate(index = ifelse(is.na(orig), index, NA)) %>% select(-orig) # set indexes that are not present to NA
     
     bcds <- bcds %>% separate(index, c('index1', 'index2', 'illumina_index')) %>% mutate(plate_pos = paste0(column, row), empty = plate_pos %in% yml$empty) 
@@ -193,9 +204,11 @@ yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/
 
     bcds <- bcds %>% select(row, column, plate_pos, illumina_index, index1, index1.seq, index2, index2.seq, empty)
 
-    bcds <- bcds %>% left_join(purrr::imap_dfr(yml$exp_indexes, ~ tibble(batch_id = .y, index2=paste0('revComp', .x[1]), illumina_index=.x[2]) ))
-
+    
+    bcds <- bcds %>% left_join(purrr::imap_dfr(yml$exp_indexes, ~ tibble(batch_id = .y, index2=paste0('revComp', .x[1]), illumina_index=.x[2]) ) %>% unnest(illumina_index))
+    
     if (remove_missing){
+    	bcds <- bcds %>% mutate(illumina_index = ifelse(illumina_index == 'NA', NA, illumina_index))
     	bcds <- bcds %>% filter(!is.na(illumina_index), !is.na(index1), !is.na(index2))
     }
 
