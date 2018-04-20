@@ -854,7 +854,8 @@ count_pairs <- function(db){
     cell_pairs <- arrange(cell_pairs, cell1, cell2)
 
     cells <- tibble(cell = db@cells$cell_id, chunk = ntile(cell, round(length(cell) / max_chunk_size)))
-        
+    
+    doMC::registerDoMC(min(5, getOption('gpatterns.parallel.thread_num')))
     pairs <- plyr::dlply(cells, plyr::.(chunk), function(x) {        
         message('extracting')
         smat <- extract_sc_data(db@.xptr, db@cpgs$id, x$cell)    
@@ -875,6 +876,7 @@ count_pairs <- function(db){
     message(glue('remaining {nrow(cell_pairs)}'))
     
     if (nrow(cell_pairs) > 0){
+        gpatterns.set_parallel(getOption('gpatterns.parallel.thread_num'))
         nbins <- getOption('gpatterns.parallel.thread_num')
 
         cell_pairs <- cell_pairs %>%
