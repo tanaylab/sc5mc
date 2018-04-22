@@ -144,7 +144,9 @@ sc5mc.init_pipeline <- function(plate_id=NULL, workdir=getwd(), indexes_file = s
 #' @export
 sc5mc.symlink_fastq <- function(raw_fastq_dir, config_file){
 	conf <- yaml::yaml.load_file(config_file)
-	illu_indexes <- purrr::map_chr(conf$exp_indexes, ~ .[2])
+		
+	illu_indexes <-  purrr::map(conf$exp_indexes, ~ .[[2]]) %>% simplify() %>% unique()
+	illu_indexes <- illu_indexes[!is.na(illu_indexes) & illu_indexes != 'NA']
 	workdir <- conf$workdir
 	fastq_dir <- conf$fastq_dir
 	orig_wd <- getwd()
