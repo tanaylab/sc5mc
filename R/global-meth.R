@@ -3,7 +3,7 @@
 #' 
 #' @param db cgdb object
 #' @param min_cov minimal number of CpGs for average methylation calculation
-#' @param breaks breaks of CpG content#' 
+#' @param breaks breaks of CpG content
 #' 
 #' @return cell metadata of \code{db} with additional columns containing the average methylation in 
 #' different CpG content regimes
@@ -15,6 +15,7 @@ get_cgc_trend <- function(db, min_cov=300, breaks=c(seq(0,0.08,0.01), 0.15, 1)){
     d <- cgc %>% filter(cov >= min_cov) %>% mutate(avg = meth / cov)  %>% left_join(db@cells)  %>% select(-cov, -meth) %>% spread(cg_cont, avg) 
     return(d)
 }
+
 
 plot_cg_cont_trend <- function(d, x='`(0.01,0.02]`', y='`(0.02,0.03]`', xlab=NULL, ylab=NULL, color_column=NULL){		
 	if (length(groups(d)) > 0){		
@@ -30,6 +31,27 @@ plot_cg_cont_trend <- function(d, x='`(0.01,0.02]`', y='`(0.02,0.03]`', xlab=NUL
 	ylab <- ylab %||% breaks_to_label(y)
 	
 	p <- d %>% ggplot(aes_string(x=x, y=y, color=color_column)) + geom_point(size=0.5, shape=19, alpha=0.5) + xlab(xlab) + ylab(ylab) + ggsci::scale_color_lancet()
+	return(p)
+}
+
+plot_cg_cont_trend_groups <- function(db, min_cov=300, breaks=seq(0,0.15,0.005), xlab='CpG content', ylab='Average methylation', ylim=c(0,1)){
+	group_column <- cell_groups(db)
+
+	d <- db %>% 
+		mutate_cpgs(cg_cont = cut(cg500, breaks=breaks, include.lowest=TRUE)) %>%
+		group_by_cpgs(cg_cont) %>% 
+		summarise() %>%
+		filter(cov >= min_cov) %>%
+		filter(!is.na(cg_cont)) %>%
+		mutate(avg = meth / cov)	
+
+	p <- d %>% ggplot(aes_string(x='cg_cont', y='avg', color=group_column, group=group_column)) + 
+			geom_line() + 
+			ggsci::scale_color_lancet() + 
+			xlab(xlab) + 
+			ylab(ylab) + 
+			ylim(ylim)
+
 	return(p)
 }
 

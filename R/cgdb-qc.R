@@ -13,7 +13,7 @@ qc_plot <- function(db, ofn=NULL, base_height=12, min_cgc_cov=300, ...){
 
 	plots <- list()
 
-	plots$p_seq <- sc5mc.plot_reads_per_cpg(db) + guides(color=FALSE)
+	plots$p_seq <- sc5mc.plot_reads_per_cpg(db, log_scale=TRUE) + guides(color=FALSE)
 
 	message('calculating average methylation per CpG content')
 	cgc_meth <- db %>% ungroup_cells() %>% ungroup_cpgs() %>% get_cgc_trend(min_cov=min_cgc_cov, breaks=c(seq(0,0.08,0.01), 0.12, 1))

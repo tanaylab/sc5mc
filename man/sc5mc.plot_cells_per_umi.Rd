@@ -10,7 +10,7 @@ sc5mc.plot_cells_per_umi(smat)
 \item{smat}{smat object}
 }
 \value{
-plot of number of cells versus percent of moleculs (only for molecules that appeared in more than 1 cell)
+plot of number of cells versus percent of molecules (only for molecules that appeared in more than 1 cell)
 }
 \description{
 Plots cells per UMI

@@ -54,7 +54,8 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 				guides(fill=FALSE) + 
 				xlab('') + 
 				ylab('% of reads') + 
-				scale_y_continuous(label=scales::percent)	
+				scale_y_continuous(label=scales::percent) + 
+				labs(subtitle = glue('total number of reads: {scales::comma(all_reads)}'))
 		
 		# fwrite(stats, stats_fn)
 	}
@@ -143,11 +144,13 @@ smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 	reg_stats_fn <- glue('{smat$tidy_cpgs_dir}/stats/regions_stats.csv')
 
 
-	if (!overwrite || all(file.exists(c(cpu_fn, rpu_fn, rpu_insert_length_fn)))){
+	if (!overwrite && all(file.exists(c(cpu_fn, rpu_fn, rpu_insert_length_fn)))){
 		if (is.null(regions) || all(file.exists(c(ontar_stats_fn, reg_stats_fn)))){
 			return(invisible(NULL))
 		}		
 	}	
+
+	message('caching statistics')
 
 	if (!has_name(smat, 'tidy_cpgs')){
 		message("Getting tidy cpgs unique")
@@ -164,7 +167,7 @@ smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 		cpu <- sc5mc.cells_per_umi(smat)
 		fwrite(cpu, cpu_fn)	
 	}
-	
+		
 	if (!file.exists(rpu_fn) || overwrite){
 		rpu <- sc5mc.reads_per_umi(smat, regions)	
 		fwrite(rpu, rpu_fn)
@@ -245,8 +248,23 @@ sc5mc.plot_reads_per_cpg <- function(smat, color_column = NULL, colors = NULL, l
 			stats$cpg_num <- stats$cg_num
 		}
 	}
+	max_read_num <- max(stats$total_reads, na.rm=TRUE)
 
-	p <- stats %>% ggplot(aes_string(x='total_reads', y='cpg_num', color=color_column)) + geom_point(size=0.5, shape=19) + stat_smooth(method='lm', se=F, linetype='dashed') + labs(subtitle = qq('median reads = @{comify(round(median(stats$total_reads, na.rm=TRUE)))}\nmedian cpgs = @{comify(round(median(stats$cpg_num, na.rm=TRUE)))}'))
+	log_lines_d <- bind_rows(tibble(x = c(1,max_read_num)) %>% mutate(y=0.1*x, model='0.1'), 
+                             tibble(x = c(1,max_read_num)) %>% mutate(y=0.2*x, model='0.2'), 
+                             tibble(x = c(1,max_read_num)) %>% mutate(y=0.3*x, model='0.3'),
+                             tibble(x = c(1,max_read_num)) %>% mutate(y=0.4*x, model='0.4'))
+
+	p <- stats %>% 
+		ggplot(aes_string(x='total_reads', y='cpg_num', color=color_column, shape='empty', size='empty')) + 
+			# geom_point(size=0.5, shape=19) + 
+			geom_point() + 
+			scale_shape_manual(values=c(19,4)) +
+			 scale_size_manual(values=c(0.5, 2)) +
+			# stat_smooth(method='lm', se=F, linetype='dashed') + 
+			guides(shape=FALSE, size=FALSE) + 
+			geom_line(d = log_lines_d, inherit.aes = FALSE, aes(x=x, y=y, group=model), linetype='dashed', color='darkgray') +
+			labs(subtitle = qq('median reads = @{comify(round(median(stats$total_reads[stats$cpg_num >= 1000], na.rm=TRUE)))}\nmedian cpgs = @{comify(round(median(stats$cpg_num[stats$cpg_num >= 1000], na.rm=TRUE)))}'))
 
 	if (log_scale){
 		p <- p + scale_y_log10(label=scales::scientific) + scale_x_log10(label=scales::scientific) + annotation_logticks()
@@ -262,7 +280,7 @@ sc5mc.plot_reads_per_cpg <- function(smat, color_column = NULL, colors = NULL, l
 		}
 		
 	} else {
-		p <- p + ggpmisc::stat_poly_eq(formula = y~ x, eq.with.lhs = "italic(hat(y))~`=`~", aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), size=2, color='darkred', parse = TRUE)
+		# p <- p + ggpmisc::stat_poly_eq(formula = y~ x, eq.with.lhs = "italic(hat(y))~`=`~", aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), size=2, color='darkred', parse = TRUE)
 	}
 	return(p)	
 }
@@ -489,7 +507,7 @@ sc5mc.cells_per_umi <- function(smat){
 #' 
 #' @param smat smat object
 #' 
-#' @return plot of number of cells versus percent of moleculs (only for molecules that appeared in more than 1 cell)
+#' @return plot of number of cells versus percent of molecules (only for molecules that appeared in more than 1 cell)
 #'
 #' @export
 sc5mc.plot_cells_per_umi <- function(smat){
