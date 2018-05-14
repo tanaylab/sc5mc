@@ -3,10 +3,12 @@ genomes:
     genome_seq: '/net/mraid14/export/data/db/tgdb/mm9/seq'
     bissli2_idx: '/net/mraid14/export/data/tools/bissli2/mm9/mm9'
     groot: '/home/aviezerl/mm9'    
+    cgdb: '/home/aviezerl/proj/sc5mc/db/mm9'
   hg19:
     genome_seq: '/net/mraid14/export/data/db/tgdb/hg19/seq'
     bissli2_idx: '/net/mraid14/export/data/tools/bissli2/hg19/hg19'
     groot: '/home/aviezerl/hg19'
+    cgdb: '/home/aviezerl/proj/sc5mc/db/hg19'
 
 steps_defaults: &steps_defaults
   parallel: true
@@ -71,35 +73,4 @@ steps: &steps
         load_existing: false
         <<: *steps_defaults           
 
-# defaults: &defaults
-#     parallel: true
-#     workdir: !expr getwd()
-#     indexes_file: '{split_dir}/indexes/{raw_fastq_basename}_indexes.tsv'    
-#     pipeline_steps:        
-#         - demultiplexing     
-#         - mapping
-#         - bam2smat  
 
-# experiments:
-#   MEFserum2d:
-#     pbat_id: 'pbat1'
-#     capture_id: 'capt1'
-#     config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/test_config/MEFserum2d.csv'
-#     # config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/MEFserum2d.csv'
-#     # pipeline_steps:    
-#     #   - bam2tracks
-#     # <<: [*defaults, *global_defaults]
-#     <<: *defaults
-#   MEFserum2d2RA:
-#     pbat_id: 'pbat2'    
-#     config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/test_config/MEFserum2d2RA.csv'    
-#     # config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/MEFserum2d2RA.csv'    
-#     # <<: [*defaults, *global_defaults]
-#     <<: *defaults
-#   N2B22:
-#     pbat_id: 'pbat3'
-#     config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/test_config/N2B22.csv'
-#     # config_file: '/net/mraid14/export/tgdata/users/aviezerl/proj/gpatterns_sandbox/N2B22.csv'
-#     genome: mm9    
-#     # <<: [*defaults, *global_defaults]
-#     <<: *defaults

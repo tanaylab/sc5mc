@@ -820,6 +820,16 @@ call_cpgs <- function(db, func, ...){
     return(db)
 }
 
+#' @export
+pull_cells <- function(db){
+    db@cells
+}
+
+#' @export
+pull_cpgs <- function(db){
+    db@cpgs
+}
+
 
 setMethod("show", 
           "cgdb", 
@@ -833,10 +843,10 @@ cgdb_info <- function(db){
     ncpgs <- comify(nrow(db@cpgs))
     message(glue('cgdb object\n{ncpgs} CpGs X {ncells} cells'))    
     message(glue('--- root (@db_root): {db@db_root}'))
-    message('\n--- Cells (@cells):')
-    print(db@cells)
-    message('\n--- CpGs (@cpgs):')
-    print(db@cpgs)
+    # message('\n--- Cells (@cells):')
+    # print(db@cells)
+    # message('\n--- CpGs (@cpgs):')
+    # print(db@cpgs)
 }
 
 #' Count methylation calls (00,01,10,11) for pairs of cells
