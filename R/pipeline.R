@@ -186,7 +186,7 @@ yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/
 
     plate_id <- yml$plate_id
 
-    all_bcds <- read_csv(yml$plate) %>% gather('column', 'index', -row)
+    all_bcds <- readr::read_csv(yml$plate) %>% gather('column', 'index', -row)
     bcds <- all_bcds
 
     for (i in 1:length(yml$exp_indexes)){
