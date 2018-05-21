@@ -60,7 +60,7 @@ steps: &steps
       <<: *steps_defaults
   bam2smat:
     description: 'generating smat object'
-    func: sc5mc.smat_per_experiment
+    func: sc5mc::sc5mc.smat_per_experiment
     # clean: gpatterns.rm '{track}'      
     params:
         log_prefix: '{workdir}/sparse_matrices/log/{experiment}'
