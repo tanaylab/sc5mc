@@ -26,7 +26,12 @@ sc5mc.get_defaults_file <- function(){
 # }
 
 #' @export
-sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description=' '){
+sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description=' ', log_file=NULL){
+	if (!is.null(log_file)){
+		logging::addHandler(logging::writeToFile, file=log_file)
+		logging::removeHandler('basic.stdout')
+		on.exit(logging::removeHandler('logging::writeToFile'))
+	}
 	all_conf <- map(config_files, yaml::yaml.load_file)
 	plate_id <- all_conf[[1]]$plate_id	
 	plate_workdir <- glue('{workdir}/{plate_id}')
@@ -40,6 +45,11 @@ sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description
 
 	conf$pipeline_steps <- 'bam2smat'
 	conf$description <- description
+
+	if (has_name(all_conf[[1]], 'annotations')){
+		conf$annotations <- all_conf[[1]]$annotations
+	}
+
 	readr::write_lines(yaml::as.yaml(conf), glue('{plate_workdir}/config.yaml'))			
 
 	
@@ -103,7 +113,12 @@ sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description
 }
 
 #' @export
-sc5mc.init_pipeline <- function(plate_id=NULL, workdir=getwd(), indexes_file = sc5mc.get_indexes_file(), config_file=NULL, seq_id=NULL, description=' '){	
+sc5mc.init_pipeline <- function(plate_id=NULL, workdir=getwd(), indexes_file = sc5mc.get_indexes_file(), config_file=NULL, seq_id=NULL, description=' ', raw_fastq_dir=NULL, log_file=NULL){	
+	if (!is.null(log_file)){
+		logging::addHandler(logging::writeToFile, file=log_file)
+		logging::removeHandler('basic.stdout')
+		on.exit(logging::removeHandler('logging::writeToFile'))
+	}
 	default_conf <- yaml::yaml.load_file( sc5mc.get_config_file())
 	if (is.null(config_file)){		
 		if (is.null(plate_id)){
@@ -130,6 +145,7 @@ sc5mc.init_pipeline <- function(plate_id=NULL, workdir=getwd(), indexes_file = s
 	conf$plate_id <- plate_id
 	conf$workdir <- plate_workdir
 	conf$fastq_dir <- glue('{plate_workdir}/fastq')
+	conf$raw_fastq_dir <- raw_fastq_dir
 
 	if (!is.null(seq_id)){
 		conf$seq_id <- seq_id	
@@ -155,6 +171,7 @@ sc5mc.symlink_fastq <- function(raw_fastq_dir, config_file){
 			illu_fastq_dir <- glue('{fastq_dir}/{.x}/raw')
 			dir.create(illu_fastq_dir, recursive=TRUE)			
 			fns <- list.files(glue('{raw_fastq_dir}/{.x}/raw'), pattern='*.gz$', full.names=TRUE)
+			fns <- c(fns, list.files(glue('{raw_fastq_dir}/{.x}'), pattern='*.gz$', full.names=TRUE))
 			setwd(illu_fastq_dir)
 			walk2(fns, basename(fns), function(from, to) file.symlink(from, to))			
 		})	
@@ -190,24 +207,25 @@ yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/
         
     }
     
-    bcds <- bcds %>% left_join(all_bcds %>% mutate(orig = TRUE)) %>% mutate(index = ifelse(is.na(orig), index, NA)) %>% select(-orig) # set indexes that are not present to NA
+    bcds <- bcds %>% left_join(all_bcds %>% mutate(orig = TRUE), by = c("row", "column", "index")) %>% mutate(index = ifelse(is.na(orig), index, NA)) %>% select(-orig) # set indexes that are not present to NA
     
     bcds <- bcds %>% separate(index, c('index1', 'index2', 'illumina_index')) %>% mutate(plate_pos = paste0(column, row), empty = plate_pos %in% yml$empty) 
   
     bcds <- bcds %>% mutate(index2 = ifelse(!is.na(index2), paste0('revComp', index2), index2))
 
+    
     bcds <- bcds %>% 
         rename(index = index1) %>%
-        left_join(indexes) %>% 
+        left_join(indexes, by = "index") %>% 
         rename(index1 = index, index1.seq = seq, index=index2) %>% 
-        left_join(indexes) %>% 
+        left_join(indexes, by = "index") %>% 
         rename(index2 = index, index2.seq = seq) %>%
         mutate(index1.seq = substring(index1.seq, 1, index1_len), index2.seq = substring(index2.seq, 1, index2_len))
 
     bcds <- bcds %>% select(row, column, plate_pos, illumina_index, index1, index1.seq, index2, index2.seq, empty)
 
     
-    bcds <- bcds %>% left_join(purrr::imap_dfr(yml$exp_indexes, ~ tibble(batch_id = .y, index2=paste0('revComp', .x[1]), illumina_index=.x[2]) ) %>% unnest(illumina_index))
+    bcds <- bcds %>% left_join(purrr::imap_dfr(yml$exp_indexes, ~ tibble(batch_id = .y, index2=paste0('revComp', .x[1]), illumina_index=.x[2]) ) %>% unnest(illumina_index), by = c("illumina_index", "index2"))
     
     if (remove_missing){
     	bcds <- bcds %>% mutate(illumina_index = ifelse(illumina_index == 'NA', NA, illumina_index))
@@ -220,9 +238,11 @@ yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/
     return(bcds)
 }
 
+#' @export
 sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL, log_file=NULL, raw_fastq_dir=NULL, defaults_file=sc5mc.get_defaults_file(), overwrite=FALSE){
 	if (!is.null(log_file)){
 		logging::addHandler(logging::writeToFile, file=log_file)
+		logging::removeHandler('basic.stdout')
 		on.exit(logging::removeHandler('logging::writeToFile'))
 	}
 
@@ -249,9 +269,14 @@ sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL
 
 	cell_metadata_fn <- glue('{workdir}/cell_metadata.csv')
 	cell_metadata <- yaml2indexes(config_file, indexes_file, remove_missing=TRUE)
+	
+	if (!is.null(conf$annotations)){
+		cell_metadata <- cbind(cell_metadata, as_tibble(conf$annotations) )
+	}
 	loginfo("Writing cell metadata to %s", cell_metadata_fn)
 	readr::write_csv(cell_metadata, cell_metadata_fn)
 
+	raw_fastq_dir <- raw_fastq_dir %||% conf$raw_fastq_dir
 	if (!is.null(raw_fastq_dir)){
 		loginfo("Creating symlinks from %s to %s", raw_fastq_dir, conf$fastq_dir)
 		sc5mc.symlink_fastq(raw_fastq_dir, config_file)
@@ -272,13 +297,119 @@ sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL
 	cell_metadata %>% mutate(experiment = conf$experiment, lib = cell_id) %>% readr::write_csv(gpatterns_indexes_file)
 	readr::write_lines(yaml::as.yaml(defaults), gpatterns_config_file)
 	
-	gpatterns.pipeline(gpatterns_config_file, log_file=gpatterns_log_file, run_dir=pipeline_dir, overwrite=overwrite)	
+	file.remove(glue('{workdir}/pipeline/finished_mapping')) # always try to map unmapped files
+
+	if (length(overwrite) == 1 && overwrite == TRUE){
+		sc5mc.clean_pipeline(config_file, steps=c('demultiplexing', 'mapping', 'bam2smat'))
+	} else if (any(c('demultiplexing', 'mapping', 'bam2smat') %in% overwrite)){
+		sc5mc.clean_pipeline(config_file, steps=overwrite)
+		overwrite <- FALSE
+	}
 	
+	gpatterns.pipeline(gpatterns_config_file, log_file=gpatterns_log_file, run_dir=pipeline_dir, overwrite=overwrite)	
+
+	smat_dir <- glue('sparse_matrices/{conf$plate_id}')
+	file.symlink(smat_dir, glue('{workdir}/sc_data'))
+	stats_file <- glue('sparse_matrices/{conf$plate_id}/smat_stats.tsv')
+	file.symlink(stats_file, glue('{workdir}/qc_stats.tsv'))
+	
+	red_message("generating QC report")	
+	sc5mc.pipeline_qc(workdir, raw_fastq_dir = raw_fastq_dir)	
+	red_message("pipeline finished")
+	blue_message('load the data using the following command:')
+	blue_message('"scmat <- smat.load(\'{workdir}/sc_data/smat\')")')
+}
+
+#' @export
+sc5mc.clean_pipeline <- function(config_file, steps){
+	conf <- yaml::yaml.load_file(config_file)
+	workdir <- conf$workdir	
+	if ('demultiplexing' %in% steps){
+		illumina_indexes <- map_chr(conf$exp_indexes, ~.x[2]) %>% unique()
+		walk(illumina_indexes, ~ {
+			dir <- glue('{workdir}/fastq/{.x}/raw/split')
+			loginfo('removing %s', dir)
+			if (dir_exists(dir)){
+				dir_delete(dir)
+			}			
+		})
+		file.remove(glue('{workdir}/pipeline/finished_demultiplexing'))
+		steps <- c(steps, 'mapping', 'bam2smat')
+	}
+	if ('mapping' %in% steps){
+		loginfo('removing %s', glue('{workdir}/bam'))	
+		if (dir_exists(glue('{workdir}/bam'))){
+			dir_delete(glue('{workdir}/bam'))
+		}		
+		file.remove(glue('{workdir}/pipeline/finished_mapping'))		
+		steps <- c(steps, 'bam2smat')
+	}
+	if ('bam2smat' %in% steps){
+		loginfo('removing %s', glue('{workdir}/sparse_matrices'))
+		if (dir_exists(glue('{workdir}/sparse_matrices'))){
+			dir_delete(glue('{workdir}/sparse_matrices'))
+		}		
+		loginfo('removing %s', glue('{workdir}/sc_data'))
+		file.remove(glue('{workdir}/sc_data'))
+		file.remove(glue('{workdir}/pipeline/finished_bam2smat'))
+	}	
+
+}
+
+#' @export
+sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=NULL){
+	config_file <- glue('{workdir}/config.yaml')
+	conf <- yaml::yaml.load_file(config_file)
+
+	defaults <- yaml::yaml.load_file(glue('{workdir}/defaults.yaml'))
+	genome_conf <- gpatterns:::apply_genome_conf(conf, defaults)
+
+	smat_dir <- glue('{workdir}/sparse_matrices/{conf$plate_id}/smat')
+
+	smat <- smat.load(smat_dir)
+	
+	if (has_name(genome_conf, 'groot')){
+		gsetroot(genome_conf$groot)
+		temp_cgdb <- glue('{workdir}/cgdb')
+		dir.create(temp_cgdb)
+		on.exit(fs::dir_delete(temp_cgdb))
+		cgdb_init(temp_cgdb, intervals=smat$intervs, overwrite = TRUE)
+		db <- cgdb_load(temp_cgdb)
+		db <- cgdb_add_plate(db, smat, plate_name=conf$plate, verbose=FALSE)
+		if (all(has_name(smat$cell_metadata, c('cell_source', 'cell_type', 'treatment')))){
+			db <- db %>% group_by_cells(cell_source, cell_type, treatment)
+		}
+		on.exit(freemem(db))		
+	} else {
+		db <- NULL
+	}
+	  
+	raw_fastq_dir <- raw_fastq_dir %||% conf$raw_fastq_dir
+    
+    date <- gsub('.+_20', '', conf$seq_id)   
+
+    if (is.null(subtitle)){
+    	if (all(has_name(smat$cell_metadata, c('cell_source', 'cell_type', 'treatment')))){
+    		cells_annot <-  smat$cell_metadata %>% unite('name', cell_source, cell_type, treatment, sep=', ')  %>% slice(1)	%>% pull(name)
+    	} else {
+    		cells_annot <- NULL
+    	}        
+
+        subtitle <- glue('{conf$experiment}, {cells_annot} ({date})')                 
+    }
+
+    ofn <- ofn %||% glue('{workdir}/qc.png')
+
+    blue_message('QC report file: {ofn}')
+    
+    message(ofn)    
+    smat <- sc5mc.qc_plot(smat, ofn=ofn, raw_reads_dir=raw_fastq_dir, subtitle=subtitle, db = db)
+    rm(smat)	
 }
 
 
 #' @export
-sc5mc.smat_per_experiment <- function(config, groot=NULL, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', run_commands=TRUE, log_prefix=TRUE, keep_tidy_cpgs=TRUE, load_existing=FALSE, cell_metadata=NULL, single_cell=TRUE, ...){	
+sc5mc.smat_per_experiment <- function(config, groot=NULL, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', run_commands=TRUE, log_prefix=TRUE, keep_tidy_cpgs=TRUE, load_existing=FALSE, cell_metadata=NULL, single_cell=TRUE, step_file=NULL, ...){	
 	orig_config <- config
 
 	if (has_name(config, 'experiment_type')){

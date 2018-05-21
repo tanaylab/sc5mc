@@ -4,7 +4,8 @@
 \alias{qc_plot}
 \title{Plot QC statistics of cgdb object}
 \usage{
-qc_plot(db, ofn = NULL, base_height = 12, min_cgc_cov = 300, ...)
+qc_plot(db, ofn = NULL, base_height = 12, min_cgc_cov = 300,
+  return_all_figs = FALSE, ...)
 }
 \arguments{
 \item{db}{cgdb object}
@@ -15,6 +16,8 @@ qc_plot(db, ofn = NULL, base_height = 12, min_cgc_cov = 300, ...)
 or \code{ncol} > 1. Default is 4.}
 
 \item{min_cgc_cov}{minimal coverage for average methylation per CpG content estimation}
+
+\item{return_all_figs}{return a list of all the figures}
 
 \item{...}{additional parameters for cowplot::save_plot}
 }

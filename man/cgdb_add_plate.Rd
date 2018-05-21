@@ -5,7 +5,7 @@
 \title{Add sc5mc data of a plate from smat object}
 \usage{
 cgdb_add_plate(db, smat, plate_name = NULL, overwrite = TRUE,
-  update_cells = TRUE)
+  update_cells = TRUE, verbose = TRUE)
 }
 \arguments{
 \item{db}{cgdb object}
@@ -17,6 +17,8 @@ cgdb_add_plate(db, smat, plate_name = NULL, overwrite = TRUE,
 \item{overwrite}{overwrite}
 
 \item{update_cells}{update cells.csv}
+
+\item{verbose}{verbose messages}
 }
 \description{
 Add sc5mc data of a plate from smat object

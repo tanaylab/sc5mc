@@ -55,7 +55,7 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         tidy_cpgs_stats_dir <- paste0(tcpgs_dir, '/stats')
         uniq_tidy_cpgs_stats_dir <- paste0(uniq_tcpgs_dir, '/stats')
         stats <- gpatterns.get_tcpgs_stats(tidy_cpgs_stats_dir, uniq_tidy_cpgs_stats_dir) %>% .$stats %>% mutate(lib = lib) %>% select(lib, everything())
-        stats[['cpg_num']] <- nrow(cols)       
+        stats[['cpg_num']] <- nrow(calls)       
 
         return(list(calls=calls, stats=stats))
     }
@@ -76,7 +76,10 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         stats <- map(cmds, ~ eval(parse(text=.x))) %>% map('stats') %>% compact() %>% map_df(~ .x)
     }
     
-    if (single_cell){        
+    if (single_cell){       
+        if (nrow(tidy_calls) == 0) {
+            logerror('did not create any tidy calls')
+        }
         tidy_calls <- tidy_calls %>% mutate(unmeth = if_else(meth == 0, 1, 0), cov=1)
     }
     if (keep_tidy_calls){

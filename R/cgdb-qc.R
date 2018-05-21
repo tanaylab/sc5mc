@@ -3,28 +3,31 @@
 #' @param db cgdb object
 #' @param ofn output file
 #' @param min_cgc_cov minimal coverage for average methylation per CpG content estimation
+#' @param return_all_figs return a list of all the figures
 #' @param ... additional parameters for cowplot::save_plot
 #' @inheritParams cowplot::save_plot
 #' 
+#' @retrun if \code{return_all_plots} - returns a list of all the sub-figures. otherwise returns a large plot with all the figures combined. 
+#' 
 #' 
 #' @export
-qc_plot <- function(db, ofn=NULL, base_height=12, min_cgc_cov=300, ...){
+qc_plot <- function(db, ofn=NULL, base_height=12, min_cgc_cov=300, return_all_figs = FALSE, ...){
 	stats <- db@cells
 
 	plots <- list()
 
 	plots$p_seq <- sc5mc.plot_reads_per_cpg(db, log_scale=TRUE) + guides(color=FALSE)
 
-	message('calculating average methylation per CpG content')
+	loginfo('calculating average methylation per CpG content')
 	cgc_meth <- db %>% ungroup_cells() %>% ungroup_cpgs() %>% get_cgc_trend(min_cov=min_cgc_cov, breaks=c(seq(0,0.08,0.01), 0.12, 1))
 	if (length(groups(stats)) > 0){		
 		cgc_meth <- cgc_meth %>% group_by(!!! groups(stats))	
 	}	
 
-	message('calculating CpG marginals')
+	loginfo('calculating CpG marginals')
 	plots$p_cpg_cov <- sc5mc.plot_cpg_marginals_bars(db)
 
-	message('calculating cell marginals')
+	loginfo('calculating cell marginals')
 	plots$p_cell_cov <- sc5mc.plot_cell_marginals_bars(db)
 
 	plots$p_cgc_low <- plot_cg_cont_trend(cgc_meth, x='`(0.01,0.02]`', y='`(0.02,0.03]`') 
@@ -42,6 +45,10 @@ qc_plot <- function(db, ofn=NULL, base_height=12, min_cgc_cov=300, ...){
 		legend <- cowplot::get_legend(plots$p_cgc_low)
 		plots$p_cgc_low <- plots$p_cgc_low + guides(color=FALSE)
 	}	
+
+	if (return_all_figs){
+		return(plots)
+	}
 
 	p <- cowplot::plot_grid(plotlist=plots, align='h', ncol=NULL, labels="AUTO", label_size=8)
 

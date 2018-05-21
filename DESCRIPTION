@@ -29,8 +29,9 @@ Imports:
 	yaml,
 	flock,
     Rcpp,
-    zeallot
-Remotes: bitbucket::tanaylab/tglkmeans@default
+    zeallot,
+    tglkmeans,
+    fs
 License: GPL
 Encoding: UTF-8
 LazyData: true

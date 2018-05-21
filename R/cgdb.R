@@ -180,6 +180,12 @@ cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){
     }
     
     cpgs <- intervals %>% arrange(chrom, start, end) %>% mutate(id = 1:n()) %>% as_tibble()
+
+    if (gtrack.exists("seq.CG_500_mean")){
+        gvtrack.create("cg500", "seq.CG_500_mean", "avg")    
+        cpgs <- gextract.left_join('cg500', intervals=cpgs, iterator=cpgs) %>% select(-(chrom1:end1)) %>% as_tibble()
+    }    
+
     fwrite(cpgs, glue('{db_root}/cpgs.csv'), sep=',')
     flock::unlock(l)
     db <- new('cgdb', db_root=db_root, cpgs=cpgs, cells=cells, CPG_NUM=nrow(cpgs))
@@ -257,7 +263,7 @@ cgdb_add_cell <- function(db, df, cell, plate, overwrite=TRUE){
     return(db)
 }
 
-cgdb_add_plate_from_df <- function(db, df, cells, plate_name=NULL, overwrite=TRUE, update_cells=TRUE){
+cgdb_add_plate_from_df <- function(db, df, cells, plate_name=NULL, overwrite=TRUE, update_cells=TRUE, verbose=TRUE){
     df <- df %>% inner_join(db@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id))
 
     plyr::alply(cells, 1, function(x) {            
@@ -279,7 +285,10 @@ cgdb_add_plate_from_df <- function(db, df, cells, plate_name=NULL, overwrite=TRU
                 writeBin(idxs, paste0(fname, '.idx.bin'), size=4)                
                 writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
                 writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)
-                message(glue('created {cell}'))    
+                if (verbose){
+                    message(glue('created {cell}'))     
+                }
+                
             } 
             
         }, .parallel=TRUE)
@@ -301,9 +310,10 @@ cgdb_add_plate_from_df <- function(db, df, cells, plate_name=NULL, overwrite=TRU
 #' @param plate_name name of the plate
 #' @param overwrite overwrite
 #' @param update_cells update cells.csv
+#' @param verbose verbose messages
 #' 
 #' @export
-cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE, update_cells=TRUE){
+cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE, update_cells=TRUE, verbose=TRUE){
     if (is.character(smat)){
         smat <- smat.load(smat)
     }
@@ -316,18 +326,22 @@ cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE, update_cel
     }
 
     plate_fn <- glue('{db@db_root}/{plate_name}')
-
+    
     cells <- smat$cell_metadata %>% 
-        left_join(tibble(cell_id = colnames(smat))) %>% 
+        left_join(tibble(cell_id = colnames(smat)), by = "cell_id") %>% 
         select(-one_of('plate')) %>% 
         separate(cell_id, c('plate', 'cell_num'), sep='\\.', remove=FALSE) %>%          
         # mutate(cell_num = as.numeric(cell_num)) %>% 
         arrange(cell_num)
 
+    if (has_stats(smat)){        
+        cells <- cells %>% left_join(smat$stats)
+    }
+
     message('Converting smat to data frame')
     smat_df <- smat.to_df(smat) %>% select(-id)
 
-    db <- cgdb_add_plate_from_df(db, smat_df, cells, plate_name=plate_name, overwrite=overwrite, update_cells=update_cells)
+    db <- cgdb_add_plate_from_df(db, smat_df, cells, plate_name=plate_name, overwrite=overwrite, update_cells=update_cells, verbose=verbose)
    
     return(db)
 }
