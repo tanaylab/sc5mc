@@ -11,7 +11,7 @@ get_cgc_trend(db, min_cov = 300, breaks = c(seq(0, 0.08, 0.01), 0.15, 1))
 
 \item{min_cov}{minimal number of CpGs for average methylation calculation}
 
-\item{breaks}{breaks of CpG content#'}
+\item{breaks}{breaks of CpG content}
 }
 \value{
 cell metadata of \code{db} with additional columns containing the average methylation in 

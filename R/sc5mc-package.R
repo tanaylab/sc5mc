@@ -9,6 +9,7 @@
 #' @import gpatterns
 #' @import dplyr
 #' @import purrr
+#' @import tidyr
 #' @import tgstat
 #' @import zeallot
 #' @importFrom tibble has_name
@@ -17,6 +18,7 @@
 #' @importFrom logging loginfo
 #' @importFrom logging logwarn
 #' @importFrom logging logerror
+#' @importFrom data.table fwrite
 #' @useDynLib sc5mc
 #' @importFrom Rcpp sourceCpp
 NULL

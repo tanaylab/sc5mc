@@ -247,6 +247,7 @@ smat.load <- function(prefix){
 #' @export
 fast_readMM <- function(fn, ...){
     mm <- fread(fn, skip=1, header=FALSE)
+
     if (ncol(mm) == 2){
         sm <- Matrix::sparseMatrix(i = mm[, 1], j=mm[, 2])    
     } else {
@@ -270,9 +271,9 @@ fast_readMM <- function(fn, ...){
 #' @export
 smat.from_conf <- function(conf){
     mat_colnames <- fread(conf$sparse_matrix$colnames) %>% as.tibble() %>% pull(1)
-
+    
     smat <- plyr::alply(c('cov', 'meth', 'unmeth'), 1, function(x) {
-        message(sprintf('loading %s', x))
+        loginfo('loading %s', x)
         m <- fast_readMM(conf$sparse_matrix[[x]]) * 1
         # m <- Matrix::readMM(conf$sparse_matrix[[x]]) * 1
         colnames(m) <- mat_colnames

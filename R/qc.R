@@ -1,12 +1,14 @@
 #' Plot QC statistics of smat object
 #' 
-#' 
+#' @param smat smat object
 #' @param cpg_pairs_min_cells minimal number of CpGs to consider in cg_pairs plot
 #' @param regions intervals set of capture regions. (default: NULL)
 #' @param capture_stats show only statistics from capture regions
 #' @param ofn output file
 #' @param subtitle additional text for title
 #' @param raw_reads_dir directory with the raw reads
+#' @param db cgdb object (in order to plot CpG conent / average methylation plots)
+#' @param min_cgc_cov minimal coverage for average methylation per CpG content estimation
 #' @param ... additional parameters for cowplot::save_plot
 #' @inheritParams cowplot::save_plot
 #' @inheritParams smat.filter_by_cov
@@ -14,7 +16,9 @@
 #' @return plot
 #' 
 #' @export
-sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20, regions=NULL, capture_stats = FALSE, ofn=NULL, width=NULL, base_height=9, subtitle = NULL, raw_reads_dir=NULL, ...){
+sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells=Inf, cpg_pairs_min_cells=20, regions=NULL, capture_stats = FALSE, ofn=NULL, width=NULL, base_height=9, subtitle = NULL, raw_reads_dir=NULL, db=NULL, min_cgc_cov=300, ...){
+	opt <- options(gmax.data.size=1e9)
+	on.exit(options(opt))
 
 	old <- theme_set(theme_bw(base_size=8))
 	on.exit(theme_set(old))
@@ -62,24 +66,24 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 
 	
 	if (has_stats(smat)){	
-		message('calculating reads per CpG')
+		loginfo('calculating reads per CpG')
 		
 		figs[['reads_per_cpg']] <- sc5mc.plot_reads_per_cpg(smat, color_column='batch_id', colors=batch_colors, log_scale=TRUE) + guides(color=FALSE)
 	}
 
-	message('calculating CpG marginals')
+	loginfo('calculating CpG marginals')
 	figs[['cpg_mars']] <- sc5mc.plot_cpg_marginals(smat, type='vals') 
 	figs[['cg_pairs_bars']] <- sc5mc.plot_cpg_marginals_bars(smat)
 
-	message('calculating cell marginals')
+	loginfo('calculating cell marginals')
 	figs[['cell_mars']] <- sc5mc.plot_cell_marginals(smat, type='vals')
 	figs[['cell_mars_bars']] <- sc5mc.plot_cell_marginals_bars(smat)
 
-	# message('calculating cell pairs')
+	# loginfo('calculating cell pairs')
 	# cell_pairs_mars <- sc5mc.plot_cell_pairs_coverage(smat)	
 	
 	if (has_stats(smat)){			
-		message('calculating conversion')
+		loginfo('calculating conversion')
 		figs[['conversion']] <- sc5mc.plot_conversion(smat)				
 	}
 
@@ -89,25 +93,32 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 		# }		
 		smat.cache_stats(smat, regions=regions)
 
-		message('calculating reads per umi')		
+		loginfo('calculating reads per umi')		
 		figs[['reads_per_umi']] <- sc5mc.plot_reads_per_umi(smat, intervals=regions)
 	
-		message('calculating reads per umi per insert length')
+		loginfo('calculating reads per umi per insert length')
 		figs[['insert_length']] <- sc5mc.plot_insert_length_reads_per_umi(smat, intervals=regions)
 	
-		message('calculating cells per umi')
+		loginfo('calculating cells per umi')
 		figs[['cells_per_umi']] <- sc5mc.plot_cells_per_umi(smat)
 		
 		if (!is.null(regions)){
-			message('calculating on target')
+			loginfo('calculating on target')
 			figs[['frac_ontar']] <- sc5mc.plot_frac_on_target(smat, intervals=regions)
-			message('calculating reads per region')
+			loginfo('calculating reads per region')
 			figs[['reads_per_region']] <- sc5mc.plot_reads_per_region(smat, intervals=regions)
 		}
 
 	}
 
-	message('plotting...')
+	if (!is.null(db)){
+		db_figs <- qc_plot(db, min_cgc_cov=min_cgc_cov, return_all_figs=TRUE)
+		figs[['cgc_low']] <- db_figs[['p_cgc_low']]
+		figs[['cgc_high']] <- db_figs[['p_cgc_high']]
+		figs[['cgc_low_high']] <- db_figs[['p_cgc_low_high']]		
+	}
+	
+	loginfo('plotting...')
 	png(tempfile(fileext='.png'))
 	p <- cowplot::plot_grid(plotlist=figs, align='h', ncol=NULL, labels="AUTO", label_size=8)
 	dev.off()	
@@ -128,7 +139,7 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 	}	
 
 	if (!is.null(ofn)){
-		message('saving plot')
+		loginfo('saving plot')
 		cowplot::save_plot(ofn, p, base_height=base_height, ...)
 	}
 
@@ -150,14 +161,14 @@ smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 		}		
 	}	
 
-	message('caching statistics')
+	loginfo('caching statistics')
 
 	if (!has_name(smat, 'tidy_cpgs')){
-		message("Getting tidy cpgs unique")
+		loginfo("Getting tidy cpgs unique")
 		smat <- smat.get_tidy_cpgs(smat, unique=TRUE)
 	}		
 	if (!has_name(smat, 'tidy_cpgs_all')){
-		message("Getting tidy cpgs non unique")
+		loginfo("Getting tidy cpgs non unique")
 		smat <- smat.get_tidy_cpgs(smat, unique=FALSE)
 	}
 
@@ -195,15 +206,16 @@ smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 
 smat.raw_reads_stats <- function(smat, raw_reads_dir){
 	stats <- smat$stats
-	raw_fns <- map_df(unique(stats$illumina_index), ~ data.frame(illumina_index = .x, fn = list.files(file.path(raw_reads_dir, .x, 'raw'), full.names=TRUE, pattern='R1.*\\.fastq\\.gz')) )
 	
+	raw_fns <- map_df(unique(stats$illumina_index), ~ data.frame(illumina_index = .x) %>% mutate(fn = list(list.files(file.path(raw_reads_dir, .x, 'raw'), full.names=TRUE, pattern='R1.*\\.fastq\\.gz'))) ) %>% unnest(fn)
+		
 	read_stats <- plyr::adply(raw_fns, 1, function(.x) {		
 		.x %>% mutate(read_num = system(glue('zcat {.x$fn} | sed -n 2~4p | wc -l'), intern=TRUE))
 	}, .parallel = TRUE)
 
 	read_stats <- read_stats %>% group_by(illumina_index) %>% summarise(illu_read_num = sum(as.numeric(read_num), na.rm=TRUE) )
-
-	stats <- stats %>% left_join(read_stats)
+	
+	stats <- stats %>% left_join(read_stats, by = "illumina_index")
 
 	return(stats)
 }
@@ -493,10 +505,10 @@ sc5mc.index_plots <- function(smat, ofn=NULL, width=7*2.5, height=5*2.3, cells_p
 #' @export
 sc5mc.cells_per_umi <- function(smat){
 	if (!has_name(smat, 'tidy_cpgs_all')){
-		message("Getting tidy cpgs")
+		loginfo("Getting tidy cpgs")
 		smat <- smat.get_tidy_cpgs(smat, unique=FALSE)
 	}
-	message("Calculating reads per UMI")
+	loginfo("Calculating reads per UMI")
 	tcpgs <- smat$tidy_cpgs_all %>% distinct(read_id, .keep_all=TRUE) %>% select(cell_id, read_id, chrom, start, end, strand, umi1, umi2, insert_len)
 	cpu <- tcpgs %>% filter(end != '-') %>% group_by(chrom, start, end) %>% summarise(n = n(), n_cells=n_distinct(cell_id)) %>% ungroup()
 	cpu <- cpu %>% group_by(n_cells) %>% summarise(n = n()) %>% mutate(p = n / sum(n))
@@ -524,7 +536,7 @@ sc5mc.plot_cells_per_umi <- function(smat){
 #' @export
 sc5mc.ontar_reads <- function(smat, intervals=NULL, return_orig=TRUE){
 	if (!has_name(smat, 'tidy_cpgs')){
-		message("Getting tidy cpgs")
+		loginfo("Getting tidy cpgs")
 		smat <- smat.get_tidy_cpgs(smat, unique=TRUE)
 	}
 	
@@ -587,7 +599,7 @@ sc5mc.plot_insert_length_reads_per_umi <- function(smat, intervals=NULL){
 #' @export
 sc5mc.frac_on_target <- function(smat, intervals){
 	if (!has_name(smat, 'tidy_cpgs')){
-		message("Getting tidy cpgs")
+		loginfo("Getting tidy cpgs")
 		smat <- smat.get_tidy_cpgs(smat, unique=TRUE)
 	}
 
