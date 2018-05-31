@@ -39,7 +39,7 @@ sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description
 
 	conf <- all_conf[[1]]
 	conf$workdir <- plate_workdir
-	conf$fastq_dir <- map_chr(all_conf, 'fastq_dir')
+	conf$fastq_dir <- map(all_conf, 'fastq_dir') %>% do.call(c, .)
 	conf$seq_id <- map(all_conf, 'seq_id') %>% do.call(c, .)
 
 
@@ -53,7 +53,7 @@ sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description
 	readr::write_lines(yaml::as.yaml(conf), glue('{plate_workdir}/config.yaml'))			
 
 	
-	workdirs <- map_chr(all_conf, 'workdir')
+	workdirs <- map_chr(all_conf, 'workdir')	
 
 	logging::loginfo('Creating symbolic links for fastqs at %s/fastq', plate_workdir)
 	raw_fastqs <- tibble(illu_dir = map(workdirs, ~ list.files(glue('{.x}/fastq/'), full.names=TRUE)) %>% do.call(c, .) ) %>% 
@@ -105,6 +105,7 @@ sc5mc.init_merge_pipeline <- function(config_files, workdir=getwd(), description
 	}
 	
 	indexes_fn <- glue('{workdirs[1]}/indexes.yaml')	
+
 	file.copy(indexes_fn, glue('{plate_workdir}/indexes.yaml'))	
 
 	logging::loginfo('Created pipeline directories and files at %s', plate_workdir)
@@ -306,7 +307,7 @@ sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL
 		overwrite <- FALSE
 	}
 	
-	gpatterns.pipeline(gpatterns_config_file, log_file=gpatterns_log_file, run_dir=pipeline_dir, overwrite=overwrite)	
+	gpatterns::gpatterns.pipeline(gpatterns_config_file, log_file=gpatterns_log_file, run_dir=pipeline_dir, overwrite=overwrite)	
 
 	smat_dir <- glue('sparse_matrices/{conf$plate_id}')
 	file.symlink(smat_dir, glue('{workdir}/sc_data'))
@@ -370,6 +371,8 @@ sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=
 	
 	if (has_name(genome_conf, 'groot')){
 		gsetroot(genome_conf$groot)
+		opt <- options(gmax.data.size=1e9)
+		on.exit(options(opt))
 		temp_cgdb <- glue('{workdir}/cgdb')
 		dir.create(temp_cgdb)
 		on.exit(fs::dir_delete(temp_cgdb))

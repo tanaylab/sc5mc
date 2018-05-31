@@ -41,7 +41,7 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
 
         tcpgs_dir <- paste0(track_workdir, '/tidy_cpgs')
         uniq_tcpgs_dir <- paste0(track_workdir, '/tidy_cpgs_uniq')
-        tcpgs <- .gpatterns.get_tidy_cpgs_from_dir(uniq_tcpgs_dir)        
+        tcpgs <- gpatterns:::.gpatterns.get_tidy_cpgs_from_dir(uniq_tcpgs_dir)        
 
         if (is.null(tcpgs)){
             return(NULL)
@@ -49,12 +49,12 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         if (single_cell){
             calls <- tcpgs2calls(tcpgs, lib)    
         } else {
-            calls <- gpatterns.tidy_cpgs_2_pileup(tcpgs) %>% mutate(track=lib) %>% select(track, chrom, start, end, meth, unmeth, cov)
+            calls <- gpatterns::gpatterns.tidy_cpgs_2_pileup(tcpgs) %>% mutate(track=lib) %>% select(track, chrom, start, end, meth, unmeth, cov)
         }        
 
         tidy_cpgs_stats_dir <- paste0(tcpgs_dir, '/stats')
         uniq_tidy_cpgs_stats_dir <- paste0(uniq_tcpgs_dir, '/stats')
-        stats <- gpatterns.get_tcpgs_stats(tidy_cpgs_stats_dir, uniq_tidy_cpgs_stats_dir) %>% .$stats %>% mutate(lib = lib) %>% select(lib, everything())
+        stats <- gpatterns::gpatterns.get_tcpgs_stats(tidy_cpgs_stats_dir, uniq_tidy_cpgs_stats_dir) %>% .$stats %>% mutate(lib = lib) %>% select(lib, everything())
         stats[['cpg_num']] <- nrow(calls)       
 
         return(list(calls=calls, stats=stats))
@@ -68,7 +68,7 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
     })
     
     if (use_sge){        
-        res <- gcluster.run2(command_list=cmds, io_saturation=io_saturation, threads=threads, packages='gpatterns')
+        res <- gpatterns::gcluster.run2(command_list=cmds, io_saturation=io_saturation, threads=threads, packages='gpatterns')
         tidy_calls <- res %>% map('retv') %>% map('calls') %>% compact() %>% map_df(~ .x)
         stats <- res %>% map('retv') %>% map('stats') %>% compact() %>% map_df(~ .x)
     } else {

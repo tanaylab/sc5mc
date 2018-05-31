@@ -732,7 +732,7 @@ filter_intervals <- function(db, intervals, ...){
     if (is.data.frame(intervals)){
         intervals <- ungroup(intervals)    
     }    
-    db@cpgs <- db@cpgs %>% gintervals.filter(intervals)    
+    db@cpgs <- db@cpgs %>% gpatterns::gintervals.filter(intervals)    
     return(db)
 }
 
@@ -900,7 +900,7 @@ count_pairs <- function(db){
     message(glue('remaining {nrow(cell_pairs)}'))
     
     if (nrow(cell_pairs) > 0){
-        gpatterns.set_parallel(getOption('gpatterns.parallel.thread_num'))
+        gpatterns::gpatterns.set_parallel(getOption('gpatterns.parallel.thread_num'))
         nbins <- getOption('gpatterns.parallel.thread_num')
 
         cell_pairs <- cell_pairs %>%
