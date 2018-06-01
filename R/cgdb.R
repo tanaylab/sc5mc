@@ -479,10 +479,10 @@ summarise_by_cpg_groups <- function(db, tidy=TRUE){
     cpgs <- db@cpgs
     cpgs$bin <- bins
     if (tidy){
-        res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% select(cell, everything()) %>% ungroup() %>% rename(cell_id = cell)   
+        res <- cpgs %>% distinct(bin) %>% right_join(res, by='bin') %>% select(-bin) %>% select(cell, everything()) %>% ungroup() %>% rename(cell_id = cell)   
     } else {
-        res$cov <-  cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res$cov, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()
-        res$meth <-  cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res$meth, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()        
+        res$cov <-  cpgs %>% distinct(bin) %>% right_join(res$cov, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()
+        res$meth <-  cpgs %>% distinct(bin) %>% right_join(res$meth, by='bin') %>% select(-bin) %>% ungroup()  %>% as_tibble()        
     }
     
     return(res)  
@@ -496,7 +496,7 @@ summarise_by_both_groups <- function(db){
     cpgs <- db@cpgs
     cpgs$bin <- bins
     
-    res <- cpgs %>% distinct(bin, .by_group=TRUE) %>% right_join(res, by='bin') %>% select(-bin) %>% ungroup() 
+    res <- cpgs %>% distinct(bin) %>% right_join(res, by='bin') %>% select(-bin) %>% ungroup() 
     return(res)
 }
 
