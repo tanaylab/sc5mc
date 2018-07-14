@@ -67,6 +67,7 @@ smat.from_bams <- function(metadata, groot, prefix=NULL, workdir=tempdir(), use_
         qq("bam2calls(c(@{bams}), lib = '@{x$lib[1]}', workdir='@{workdir}', keep_tidy_cpgs=@{keep_tidy_cpgs}, load_existing=@{load_existing}, ...)")
     })
     
+    
     if (use_sge){        
         res <- gpatterns::gcluster.run2(command_list=cmds, io_saturation=io_saturation, threads=threads, packages='gpatterns')
         tidy_calls <- res %>% map('retv') %>% map('calls') %>% compact() %>% map_df(~ .x)
