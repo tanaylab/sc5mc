@@ -240,7 +240,7 @@ yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/
 }
 
 #' @export
-sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL, log_file=NULL, raw_fastq_dir=NULL, defaults_file=sc5mc.get_defaults_file(), overwrite=FALSE){
+sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL, log_file=NULL, raw_fastq_dir=NULL, defaults_file=sc5mc.get_defaults_file(), overwrite=FALSE, regions=NULL){
 	if (!is.null(log_file)){
 		logging::addHandler(logging::writeToFile, file=log_file)
 		logging::removeHandler('basic.stdout')
@@ -315,7 +315,7 @@ sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL
 	file.symlink(stats_file, glue('{workdir}/qc_stats.tsv'))
 	
 	red_message("generating QC report")	
-	sc5mc.pipeline_qc(workdir, raw_fastq_dir = raw_fastq_dir)	
+	sc5mc.pipeline_qc(workdir, raw_fastq_dir = raw_fastq_dir, regions=regions)	
 	red_message("pipeline finished")
 	blue_message('load the data using the following command:')
 	blue_message('"scmat <- smat.load(\'{workdir}/sc_data/smat\')")')
@@ -358,7 +358,7 @@ sc5mc.clean_pipeline <- function(config_file, steps){
 }
 
 #' @export
-sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=NULL){
+sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=NULL, regions=NULL){
 	config_file <- glue('{workdir}/config.yaml')
 	conf <- yaml::yaml.load_file(config_file)
 
@@ -408,6 +408,12 @@ sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=
     message(ofn)    
     smat <- sc5mc.qc_plot(smat, ofn=ofn, raw_reads_dir=raw_fastq_dir, subtitle=subtitle, db = db)
     rm(smat)	
+
+    if (!is.null(regions)){
+    	regions <- gintervals.load(regions)
+		smat <- sc5mc.qc_plot(smat, ofn=glue('{workdir}/qc_capture.png'), raw_reads_dir=raw_fastq_dir, subtitle=subtitle, db = db, regions=regions, capture_stats=TRUE)    	
+    }
+    
 }
 
 

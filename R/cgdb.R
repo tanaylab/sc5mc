@@ -516,6 +516,7 @@ summarise_intervals <- function(db, intervals){
 
     res <- db %>% 
         gintervals.neighbors_cpgs(intervals) %>% 
+        filter_cpgs(dist == 0) %>%
         group_by_cpgs(chrom1, start1, end1) %>% 
         summarise()
     res <- res %>% rename(chrom = chrom1, start = start1, end = end1)
@@ -547,7 +548,19 @@ intervals_cell_cov <- function(db, intervals, min_cov=1){
     colnames(cov_tab) <- db@cells$cell_id
     cov_tab <- cov_tab >= min_cov
 
-    res <- db@cells %>% do(mutate(bin_intervs, cell_cov = rowSums(cov_tab[, .$cell_id])[-1])) %>% ungroup()
+    # in case we have only one cell in a group
+    row_sums <- function(x, ...) {
+        if (is.null(dim(x))) {
+            return(as.numeric(x))
+        }
+        if (dim(x) < 2){
+            return(as.numeric(x))
+        }      
+        
+        return(rowSums(x, ...))        
+    }
+
+    res <- db@cells %>% do(mutate(bin_intervs, cell_cov = row_sums(cov_tab[, .$cell_id])[-1])) %>% ungroup()
     return(res)
 }
 
@@ -808,6 +821,12 @@ left_join_cells <- function(db, ...){
     return(db)
 }
 
+#' @export
+anti_join_cells <- function(db, ...){
+    db@cells <- db@cells %>% anti_join(...)    
+    return(db)
+}
+
 # count
 #' @export
 count_cpgs <- function(db, ...){
@@ -857,6 +876,16 @@ cgdb_info <- function(db){
     ncpgs <- comify(nrow(db@cpgs))
     message(glue('cgdb object\n{ncpgs} CpGs X {ncells} cells'))    
     message(glue('--- root (@db_root): {db@db_root}'))
+    if (length(cell_groups(db)) > 0){
+        groups <- paste(cell_groups(db), collapse = ', ')
+        message(glue('--- cell groups: {groups}'))    
+    }
+
+    if (length(cpg_groups(db)) > 0){
+        groups <- paste(cpg_groups(db), collapse = ', ')
+        message(glue('--- CpG groups: {groups}'))    
+    }
+    
     # message('\n--- Cells (@cells):')
     # print(db@cells)
     # message('\n--- CpGs (@cpgs):')
