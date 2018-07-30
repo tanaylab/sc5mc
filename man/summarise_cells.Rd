@@ -4,7 +4,7 @@
 \alias{summarise_cells}
 \title{Summary of cells per CpG}
 \usage{
-summarise_cells(db, cells = NULL)
+summarise_cells(db, cells = NULL, add_metadata = TRUE)
 }
 \description{
 Summary of cells per CpG
