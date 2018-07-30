@@ -26,8 +26,11 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 		smat <- smat.filter_by_cov(smat, min_cells=min_cells, max_cells=max_cells, max_cpgs=max_cpgs, min_cpgs=min_cpgs)
 	}
 
-	if (!is.null(regions) && capture_stats){
-		smat <- smat.filter(smat, intervs = regions)
+	if (!is.null(regions)){
+		smat_ontar <- smat.filter(smat, intervs = regions)
+		if (capture_stats){
+			smat <- smat_ontar
+		}		
 	}
 
 	if (has_stats(smat) && has_name(smat$stats, 'cell_id')){
@@ -79,6 +82,10 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 	figs[['cell_mars']] <- sc5mc.plot_cell_marginals(smat, type='vals')
 	figs[['cell_mars_bars']] <- sc5mc.plot_cell_marginals_bars(smat)
 
+	if (!is.null(regions)){
+		figs[['cell_mars_bars_ontar']] <- sc5mc.plot_cell_marginals_bars(smat_ontar) + xlab('On target CpGs')
+	}
+
 	# loginfo('calculating cell pairs')
 	# cell_pairs_mars <- sc5mc.plot_cell_pairs_coverage(smat)	
 	
@@ -88,16 +95,24 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 	}
 
 	if (has_name(smat, 'tidy_cpgs') || has_name(smat, 'tidy_cpgs_dir')){
-		# if (!has_name(smat, 'tidy_cpgs')){
-		# 	smat <- smat.get_tidy_cpgs(smat)
-		# }		
+
 		smat.cache_stats(smat, regions=regions)
 
-		loginfo('calculating reads per umi')		
-		figs[['reads_per_umi']] <- sc5mc.plot_reads_per_umi(smat, intervals=regions)
+		glob_stats_regions <- NULL
+		if (capture_stats){
+			glob_stats_regions <- regions
+		} 
+
+		if (!is.null(regions)){
+			loginfo('calculating reads per umi')		
+			figs[['reads_per_umi']] <- sc5mc.plot_capture_reads_per_umi(smat, intervals=regions)			
+		} else {
+			loginfo('calculating reads per umi')		
+			figs[['reads_per_umi']] <- sc5mc.plot_reads_per_umi(smat, intervals=glob_stats_regions)	
+		}		
 	
 		loginfo('calculating reads per umi per insert length')
-		figs[['insert_length']] <- sc5mc.plot_insert_length_reads_per_umi(smat, intervals=regions)
+		figs[['insert_length']] <- sc5mc.plot_insert_length_reads_per_umi(smat, intervals=glob_stats_regions)
 	
 		loginfo('calculating cells per umi')
 		figs[['cells_per_umi']] <- sc5mc.plot_cells_per_umi(smat)
@@ -150,13 +165,15 @@ sc5mc.qc_plot <- function(smat, min_cpgs=1, max_cpgs=Inf, min_cells=1, max_cells
 smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 	cpu_fn <- glue('{smat$tidy_cpgs_dir}/stats/cpu.csv')
 	rpu_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu.csv')
+	rpu_ontar_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu_ontar.csv')
+	rpu_offtar_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu_offtar.csv')
 	rpu_insert_length_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu_insert_length.csv')
 	ontar_stats_fn <- glue('{smat$tidy_cpgs_dir}/stats/ontar_stats.csv')
 	reg_stats_fn <- glue('{smat$tidy_cpgs_dir}/stats/regions_stats.csv')
 
 
 	if (!overwrite && all(file.exists(c(cpu_fn, rpu_fn, rpu_insert_length_fn)))){
-		if (is.null(regions) || all(file.exists(c(ontar_stats_fn, reg_stats_fn)))){
+		if (is.null(regions) || all(file.exists(c(ontar_stats_fn, reg_stats_fn, rpu_ontar_fn, rpu_offtar_fn)))){
 			return(invisible(NULL))
 		}		
 	}	
@@ -180,13 +197,13 @@ smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 	}
 		
 	if (!file.exists(rpu_fn) || overwrite){
-		rpu <- sc5mc.reads_per_umi(smat, regions)	
+		rpu <- sc5mc.reads_per_umi(smat)	
 		fwrite(rpu, rpu_fn)
 	}
 	
 
 	if (!file.exists(rpu_insert_length_fn) || overwrite){
-		rpu_insert_length <- sc5mc.reads_per_umi_insert_length(smat, regions)
+		rpu_insert_length <- sc5mc.reads_per_umi_insert_length(smat)
 		fwrite(rpu_insert_length, rpu_insert_length_fn)
 	}
 
@@ -201,6 +218,16 @@ smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 			reg_stats <- sc5mc.reads_per_region(smat, regions)	
 			fwrite(reg_stats, reg_stats_fn)	
 		}
+
+		if (!file.exists(rpu_ontar_fn) || overwrite){
+			rpu_ontar <- sc5mc.reads_per_umi(smat, intervals=regions)	
+			fwrite(rpu_ontar, rpu_ontar_fn)
+		}
+
+		if (!file.exists(rpu_offtar_fn) || overwrite){
+			rpu_offtar <- sc5mc.reads_per_umi(smat, intervals=gintervals.diff(gintervals.all(), regions))
+			fwrite(rpu_offtar, rpu_offtar_fn)
+		}		
 	}
 }
 
@@ -371,7 +398,7 @@ sc5mc.plot_cell_marginals_bars <- function(smat, cpg_nums = c(500, 1000, 5000, 1
 		n_cpgs <- nrow(smat@cpgs)		
 	}
 
-	p <- purrr::map_dfr(cpg_nums, ~ tibble(k=.x, cpgs=sum(cell_mars$cov >= .x))) %>% ggplot(aes(x=factor(k), y=cpgs)) + geom_col(width=0.7, fill='darkblue') + ylab('cells with # CpGs >= x') + xlab('CpGs') + scale_x_discrete(labels=function(x) scales::comma(as.numeric(x))) + labs(subtitle = qq('number of cells = @{comify(n_cells)}\nnumber of cpgs = @{comify(n_cpgs)}'))
+	p <- purrr::map_dfr(cpg_nums, ~ tibble(k=.x, cpgs=sum(cell_mars$cov >= .x))) %>% ggplot(aes(x=factor(k), y=cpgs)) + geom_col(width=0.7, fill='darkblue') + ylab('cells with # CpGs >= x') + xlab('CpGs') + scale_x_discrete(labels=function(x) scales::comma(as.numeric(x))) + labs(subtitle = qq('number of cells = @{comify(n_cells)}\nnumber of cpgs = @{comify(n_cpgs)}')) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
 	return(p)
 }
 
@@ -561,7 +588,7 @@ sc5mc.reads_per_umi <- function(smat, intervals=NULL){
 #' @export
 sc5mc.plot_reads_per_umi <- function(smat, intervals=NULL){
 	rpu_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu.csv')
-	if (file.exists(rpu_fn)){
+	if (file.exists(rpu_fn) && is.null(intervals)){
 		rpu <- fread(rpu_fn) %>% as_tibble()
 	} else {
 		rpu <- sc5mc.reads_per_umi(smat, intervals)		
@@ -576,6 +603,34 @@ sc5mc.plot_reads_per_umi <- function(smat, intervals=NULL){
 	return(p)	
 }
 
+sc5mc.plot_capture_reads_per_umi <- function(smat, intervals){
+	rpu_offtar_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu_offtar.csv')
+	if (file.exists(rpu_offtar_fn)){
+		rpu_offtar <- fread(rpu_offtar_fn) %>% as_tibble()
+	} else {
+		rpu_offtar <- sc5mc.reads_per_umi(smat, gintervals.diff(gintervals.all(), intervals))
+	}
+
+	rpu_ontar_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu_ontar.csv')
+	if (file.exists(rpu_ontar_fn)){
+		rpu_ontar <- fread(rpu_ontar_fn) %>% as_tibble()
+	} else {
+		rpu_ontar <- sc5mc.reads_per_umi(smat, intervals)		
+	}
+
+	rpu <- rpu_offtar %>% 
+		mutate(type = 'off target') %>% 
+		bind_rows(rpu_ontar %>% mutate(type = 'on target')) %>% 
+		mutate(reads = cut(reads, breaks=c(0,1,4,10,1e6), include.lowest=TRUE, labels=c('1', '2-4', '5-10', '>10'))) %>% 
+		group_by(reads, type) %>% 
+		summarise(n = sum(n, na.rm=TRUE)) %>% 
+		group_by(type) %>%
+		mutate(p = n / sum(n))	
+	p <- rpu %>% ggplot(aes(x=reads, y=p, fill=type)) + geom_col(width=0.7, position='dodge') + scale_y_continuous(label=scales::percent) +  xlab('Reads / UMI') + ylab("% of reads") + ggsci::scale_fill_lancet(name='') + theme(axis.text.x = element_text(angle = 0, hjust = 0, vjust=0.5)) + theme(legend.position="bottom")
+
+	return(p)
+}
+
 sc5mc.reads_per_umi_insert_length <- function(smat, intervals=NULL){
 	tcpgs <- sc5mc.ontar_reads(smat, intervals)	
 	rpu <- tcpgs %>% mutate(reads = cut(num, breaks=c(0,1,4,10,1e6), include.lowest=TRUE, labels=c('1', '2-4', '5-10', '>10'))) %>% filter(!is.na(reads))
@@ -585,7 +640,7 @@ sc5mc.reads_per_umi_insert_length <- function(smat, intervals=NULL){
 #' @export
 sc5mc.plot_insert_length_reads_per_umi <- function(smat, intervals=NULL){
 	rpu_fn <- glue('{smat$tidy_cpgs_dir}/stats/rpu_insert_length.csv')
-	if (file.exists(rpu_fn)){
+	if (file.exists(rpu_fn) && is.null(intervals)){
 		rpu <- fread(rpu_fn) %>% as_tibble()
 	} else {
 		rpu <- sc5mc.reads_per_umi_insert_length(smat, intervals)		
@@ -649,12 +704,15 @@ sc5mc.plot_reads_per_region <- function(smat, intervals){
 		reg_stats <- sc5mc.reads_per_region(smat, intervals)		
 	}
 	
-	p <- reg_stats %>% 
+	reg_stats_p <- reg_stats %>% 
 		ungroup() %>% 
 		count(cov) %>% 
-		mutate(cum = rev(cumsum(rev(n)))) %>% 
+		mutate(cum = rev(cumsum(rev(n))))	
+	
+	p <- reg_stats_p %>% 
+		filter(cov >= 5) %>%
 		ggplot(aes(x=cov, y=cum)) + 
-			geom_point(size=0.5, shape=19) + 
+			geom_point(size=0.5, shape=19) + 			
 			xlab("Reads") + 
 			ylab("Regions with at least x reads") + 
 			scale_y_continuous(labels=comify) +

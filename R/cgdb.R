@@ -415,7 +415,7 @@ summarise.cgdb <- function(.Object, tidy=TRUE){
 
     # summary of groups of cells per CpG
     if (has_cell_groups && !has_cpg_groups){        
-        res <- .Object@cells %>% do(summarise_cells(.Object, .$cell_id)) %>% ungroup() %>% select(chrom, start, end, everything())      
+        res <- summarise_cells_by_group(.Object, tidy=tidy) 
     }
 
     # summary of groups of CpGs per cell
@@ -456,19 +456,35 @@ summarise_cpgs <- function(db, cpgs=NULL){
     return(scdata)
 }
 
+summarise_cells_by_group <- function(db, tidy=TRUE, add_metadata=TRUE){
+    if (tidy){
+        res <- db@cells %>% do(summarise_cells(db, .$cell_id, add_metadata=add_metadata)) %>% ungroup() %>% select(chrom, start, end, everything())  
+    } else {        
+        d <- db@cells %>% ungroup() %>% plyr::dlply(cell_groups(db), function(x) summarise_cells(ungroup_cells(db), x$cell_id, add_metadata=FALSE), .parallel = TRUE)
+        res <- list()
+        res$cov <- do.call('cbind', map(d, ~ .x[[2]])) %>% as.matrix()
+        res$meth <- do.call('cbind', map(d, ~ .x[[3]])) %>% as.matrix()                
+        res$intervs <- db@cpgs        
+    }
+
+    return(res)
+}
+
 #' Summary of cells per CpG
 #' 
 #' @export
-summarise_cells <- function(db, cells=NULL){
+summarise_cells <- function(db, cells=NULL, add_metadata=TRUE){
     if (is_grouped_df(db@cpgs)){
         return(as_tibble(summarise_by_both_groups(db)))
     } else {
         cells <- cells %||% db@cells$cell_id    
-        scdata <- mean_meth_per_cpg(db, idxs=db@cpgs$id, cells=cells)        
-        scdata <- db@cpgs %>% select(-id) %>% bind_cols(scdata) %>% as_tibble()     
+        scdata <- mean_meth_per_cpg(db, idxs=db@cpgs$id, cells=cells)   
+        if (add_metadata)     {
+            scdata <- db@cpgs %>% select(-id) %>% bind_cols(scdata)
+        }        
     }
     
-    return(scdata)    
+    return(as_tibble(scdata))
 }
 
 summarise_by_cpg_groups <- function(db, tidy=TRUE){        
@@ -553,7 +569,7 @@ intervals_cell_cov <- function(db, intervals, min_cov=1){
         if (is.null(dim(x))) {
             return(as.numeric(x))
         }
-        if (dim(x) < 2){
+        if (length(dim(x)) < 2){
             return(as.numeric(x))
         }      
         
@@ -820,6 +836,13 @@ left_join_cells <- function(db, ...){
     db@cells <- db@cells %>% left_join(...)    
     return(db)
 }
+
+#' @export
+inner_join_cpgs <- function(db, ...){
+    db@cpgs <- db@cpgs %>% inner_join(...)    
+    return(db)
+}
+
 
 #' @export
 anti_join_cells <- function(db, ...){

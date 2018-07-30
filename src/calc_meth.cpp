@@ -86,4 +86,17 @@ std::vector<std::string> list_open_cells(SEXP cgdb){
     return(ptr->list_open_cells());   
 }
 
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
+unsigned get_cell_ncpgs(SEXP cgdb, const std::string& cell){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->get_cell_ncpgs(cell));      
+}
+
+////////////////////////////////////////////////////////////////////////
+// [[Rcpp::export]]
+std::string get_cell_filename(SEXP cgdb, const std::string& cell){
+    Rcpp::XPtr<CGDB> ptr(cgdb);
+    return(ptr->get_cell_filename(cell));      
+}
 
