@@ -3,6 +3,7 @@
 S3method(extract,cgdb)
 S3method(summarise,cgdb)
 S3method(ungroup,cgdb)
+export(anti_join_cells)
 export(call_cells)
 export(call_cpgs)
 export(cell_groups)

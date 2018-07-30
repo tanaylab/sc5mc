@@ -404,15 +404,20 @@ sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=
     ofn <- ofn %||% glue('{workdir}/qc.png')
 
     blue_message('QC report file: {ofn}')
-    
-    message(ofn)    
-    smat <- sc5mc.qc_plot(smat, ofn=ofn, raw_reads_dir=raw_fastq_dir, subtitle=subtitle, db = db)
-    rm(smat)	
 
-    if (!is.null(regions)){
+    if (!is.null(regions) && is.character(regions)){
     	regions <- gintervals.load(regions)
-		smat <- sc5mc.qc_plot(smat, ofn=glue('{workdir}/qc_capture.png'), raw_reads_dir=raw_fastq_dir, subtitle=subtitle, db = db, regions=regions, capture_stats=TRUE)    	
     }
+
+    message(ofn)    
+    smat <- sc5mc.qc_plot(smat, ofn=ofn, raw_reads_dir=raw_fastq_dir, subtitle=subtitle, db = db, regions=regions)    
+
+    # if (!is.null(regions)){    	
+    	# blue_message('capture QC report file: {workdir}/qc_capture.png')
+		# smat <- sc5mc.qc_plot(smat, ofn=glue('{workdir}/qc_capture.png'), raw_reads_dir=raw_fastq_dir, subtitle=subtitle, db = db, regions=regions, capture_stats=TRUE)	
+    # }
+
+    rm(smat)	
     
 }
 

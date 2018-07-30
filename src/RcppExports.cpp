@@ -133,6 +133,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// get_cell_ncpgs
+unsigned get_cell_ncpgs(SEXP cgdb, const std::string& cell);
+RcppExport SEXP _sc5mc_get_cell_ncpgs(SEXP cgdbSEXP, SEXP cellSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type cell(cellSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_cell_ncpgs(cgdb, cell));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_cell_filename
+std::string get_cell_filename(SEXP cgdb, const std::string& cell);
+RcppExport SEXP _sc5mc_get_cell_filename(SEXP cgdbSEXP, SEXP cellSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cgdb(cgdbSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type cell(cellSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_cell_filename(cgdb, cell));
+    return rcpp_result_gen;
+END_RCPP
+}
 // shuffle_mat_marginals
 NumericMatrix shuffle_mat_marginals(const NumericMatrix& m_meth, const NumericMatrix& inds_mat, const int& n_shuff);
 RcppExport SEXP _sc5mc_shuffle_mat_marginals(SEXP m_methSEXP, SEXP inds_matSEXP, SEXP n_shuffSEXP) {
@@ -160,6 +184,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_count_pairs_all_cpp", (DL_FUNC) &_sc5mc_count_pairs_all_cpp, 4},
     {"_sc5mc_freemem_cpp", (DL_FUNC) &_sc5mc_freemem_cpp, 1},
     {"_sc5mc_list_open_cells", (DL_FUNC) &_sc5mc_list_open_cells, 1},
+    {"_sc5mc_get_cell_ncpgs", (DL_FUNC) &_sc5mc_get_cell_ncpgs, 2},
+    {"_sc5mc_get_cell_filename", (DL_FUNC) &_sc5mc_get_cell_filename, 2},
     {"_sc5mc_shuffle_mat_marginals", (DL_FUNC) &_sc5mc_shuffle_mat_marginals, 3},
     {"CGDB__new",                         (DL_FUNC) &CGDB__new,                         2},
     {NULL, NULL, 0}

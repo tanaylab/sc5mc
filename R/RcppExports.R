@@ -41,6 +41,14 @@ list_open_cells <- function(cgdb) {
     .Call('_sc5mc_list_open_cells', PACKAGE = 'sc5mc', cgdb)
 }
 
+get_cell_ncpgs <- function(cgdb, cell) {
+    .Call('_sc5mc_get_cell_ncpgs', PACKAGE = 'sc5mc', cgdb, cell)
+}
+
+get_cell_filename <- function(cgdb, cell) {
+    .Call('_sc5mc_get_cell_filename', PACKAGE = 'sc5mc', cgdb, cell)
+}
+
 shuffle_mat_marginals <- function(m_meth, inds_mat, n_shuff = 1000L) {
     .Call('_sc5mc_shuffle_mat_marginals', PACKAGE = 'sc5mc', m_meth, inds_mat, n_shuff)
 }

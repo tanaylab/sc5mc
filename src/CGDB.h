@@ -19,16 +19,14 @@ class CGDB {
         const std::string m_db_dir;
         const int m_CPG_NUM;
 
-        std::unordered_map<std::string, int*> m_cell_idx;        
+        std::unordered_map<std::string, int*> m_cell_idx;
         std::unordered_map<std::string, float*> m_cell_cov;
         std::unordered_map<std::string, float*> m_cell_met;
         std::unordered_map<std::string, int> m_ncpgs;
 
         void add_cell_data(std::string const& cell);
 
-        unsigned get_cell_data(std::string const& cell, int*& cell_idx, float*& cell_met, float*& cell_cov);
-
-        unsigned get_cell_ncpgs(const std::string& cell);
+        unsigned get_cell_data(std::string const& cell, int*& cell_idx, float*& cell_met, float*& cell_cov);        
 
         bool valid_indexes(const IntegerVector& idxs){
         	return (min(idxs) > 0 && max(idxs) <= m_CPG_NUM );
@@ -60,6 +58,9 @@ class CGDB {
        		freemem();
         }
 
+        unsigned get_cell_ncpgs(const std::string& cell);
+        std::string get_cell_filename(const std::string& cell);
+
         DataFrame mean_meth(const IntegerVector& idxs, const std::vector<std::string>& cells);
         DataFrame bin_meth(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);        
         List bin_meth_per_cell_cpp(const IntegerVector& idxs, const IntegerVector& bins, const std::vector<std::string>& cells);
@@ -71,6 +72,7 @@ class CGDB {
 
         NumericMatrix count_pairs_all(const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2);
         std::vector<int> count_pairs(const IntegerVector& idxs, const std::string& cell1, const std::string& cell2, std::vector<int>& counts);
+
 };
 
 

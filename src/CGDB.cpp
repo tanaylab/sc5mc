@@ -4,8 +4,9 @@ using namespace Rcpp;
 
 ////////////////////////////////////////////////////////////////////////
 void CGDB::add_cell_data(const std::string& cell){
-    unsigned point = cell.find(".");
-    std::string fname = m_db_dir + "/" +  cell.substr(0, point) + "/" + cell.substr(point+1);
+    std::string fname = get_cell_filename(cell);
+    // unsigned point = cell.find(".");
+    // std::string fname = m_db_dir + "/" +  cell.substr(0, point) + "/" + cell.substr(point+1);
 
     std::string idx_fname = fname + ".idx.bin";
     std::string met_fname = fname + ".meth.bin";
@@ -19,6 +20,12 @@ void CGDB::add_cell_data(const std::string& cell){
     // Rcout << "added "  << cell << std::endl;
 }
 
+////////////////////////////////////////////////////////////////////////
+std::string CGDB::get_cell_filename(const std::string& cell){
+    unsigned point = cell.find(".");
+    std::string fname = m_db_dir + "/" +  cell.substr(0, point) + "/" + cell.substr(point+1);
+    return(fname);
+}
 
 ////////////////////////////////////////////////////////////////////////
 unsigned CGDB::get_cell_data(const std::string& cell, int*& cell_idx, float*& cell_met, float*& cell_cov){
@@ -71,7 +78,6 @@ DataFrame CGDB::mean_meth(const IntegerVector& idxs, const std::vector<std::stri
         float* cell_met = NULL;
         float* cell_cov = NULL;
         unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
-
         
         if ((cell_idx == NULL) || (cell_met == NULL) || (cell_cov == NULL) ) {
             meth[i] = NA_REAL;
