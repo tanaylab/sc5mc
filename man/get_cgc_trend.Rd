@@ -4,7 +4,8 @@
 \alias{get_cgc_trend}
 \title{Calculate average methylation per cell given CpG content}
 \usage{
-get_cgc_trend(db, min_cov = 300, breaks = c(seq(0, 0.08, 0.01), 0.15, 1))
+get_cgc_trend(db, min_cov = 300, breaks = c(seq(0, 0.08, 0.01), 0.15, 1),
+  downsample = FALSE, downsample_n = NULL)
 }
 \arguments{
 \item{db}{cgdb object}
@@ -12,10 +13,14 @@ get_cgc_trend(db, min_cov = 300, breaks = c(seq(0, 0.08, 0.01), 0.15, 1))
 \item{min_cov}{minimal number of CpGs for average methylation calculation}
 
 \item{breaks}{breaks of CpG content}
+
+\item{downsample}{downsample the cells. Note that cells that do not have enough covered CpGs would be removed.}
+
+\item{downsample_n}{number of CpGs per each cell. If NULL - the number of CpGs would be determined based on the 0.1 quantile of cell coverage in each strata of CpG content.}
 }
 \value{
 cell metadata of \code{db} with additional columns containing the average methylation in 
-different CpG content regimes
+different CpG content regimes. If \code{downsample} is TRUE an additional column 'downsample_n' with the number of cpgs per strata of CpG content.
 }
 \description{
 Calculate average methylation per cell given CpG content
