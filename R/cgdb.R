@@ -843,6 +843,17 @@ inner_join_cpgs <- function(db, ...){
     return(db)
 }
 
+#' @export
+inner_join_cells <- function(db, ...){
+    db@cells <- db@cells %>% inner_join(...)    
+    return(db)
+}
+
+#' @export
+anti_join_cpgs <- function(db, ...){
+    db@cpgs <- db@cpgs %>% anti_join(...)    
+    return(db)
+}
 
 #' @export
 anti_join_cells <- function(db, ...){
@@ -922,8 +933,8 @@ cgdb_info <- function(db){
 #' @return data frame with the following fields: cell1, cell2, n00, n01, n10, n11
 #' 
 #' @export
-count_pairs <- function(db){
-    max_chunk_size <- 100
+count_pairs <- function(db, max_chunk_size=200){    
+    message('filtering CpGs with less than 2 cells')
     db <- db %>% filter_by_cov(min_cells=2)
 
     cell_pairs <- t(combn(db@cells$cell_id, 2)) %>% as_tibble() %>% set_names(c('cell1', 'cell2'))
@@ -931,18 +942,31 @@ count_pairs <- function(db){
 
     cells <- tibble(cell = db@cells$cell_id, chunk = ntile(cell, round(length(cell) / max_chunk_size)))
     
+    message(glue('chunks: {length(unique(cells$chunk))}'))
     doMC::registerDoMC(min(5, getOption('gpatterns.parallel.thread_num')))
-    pairs <- plyr::dlply(cells, plyr::.(chunk), function(x) {        
-        message('extracting')
-        smat <- extract_sc_data(db@.xptr, db@cpgs$id, x$cell)    
+    
+    pairs <- plyr::dlply(cells, plyr::.(chunk), function(x) {    
+        chunk <- x$chunk[1]        
+        message(glue('extracting ({chunk})'))
+        df <- extract_sc_data_sparse(db@.xptr, db@cpgs$id, x$cell)    
+
+        message(glue('arranging ({chunk})'))
+        smat <- list()
+        smat$meth <- tidy2smat(df, 'id', 'cell_id', 'meth')
+        smat$cov <- tidy2smat(df, 'id', 'cell_id', 'cov')       
         
-        message('arranging')
         colnames(smat$cov) <- x$cell
         colnames(smat$meth) <- x$cell
-        message('creating unmeth matrix')
-        smat$unmeth <- smat$cov - smat$meth        
-        message('calculating pairs')
-        pairs_meth <- sc5mc.calc_pdiff(smat, min_cgs=0) %>% select(cell1, cell2, n00, n01, n10, n11)
+
+        print(dim(smat$meth))          
+
+        message(glue('creating unmeth matrix ({chunk})'))        
+        smat$unmeth <- smat$cov - smat$meth    
+
+        message(glue('calculating pairs ({chunk})'))
+        pairs_meth <- sc5mc.calc_pdiff(smat, min_cgs=0) %>% select(cell1, cell2, n00, n01, n10, n11)        
+        rm(smat)
+        gc()
         return(pairs_meth)
     }, .parallel = TRUE)
 
@@ -952,8 +976,9 @@ count_pairs <- function(db){
     message(glue('remaining {nrow(cell_pairs)}'))
     
     if (nrow(cell_pairs) > 0){
-        gpatterns::gpatterns.set_parallel(getOption('gpatterns.parallel.thread_num'))
-        nbins <- getOption('gpatterns.parallel.thread_num')
+        # gpatterns::gpatterns.set_parallel(getOption('gpatterns.parallel.thread_num'))
+        # nbins <- getOption('gpatterns.parallel.thread_num')
+        nbins <- 5
 
         cell_pairs <- cell_pairs %>%
             mutate(chunk = ntile(cell1, nbins)) %>% 

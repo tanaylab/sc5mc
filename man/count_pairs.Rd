@@ -4,7 +4,7 @@
 \alias{count_pairs}
 \title{Count methylation calls (00,01,10,11) for pairs of cells}
 \usage{
-count_pairs(db)
+count_pairs(db, max_chunk_size = 200)
 }
 \arguments{
 \item{db}{cgdb object}

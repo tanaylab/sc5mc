@@ -27,6 +27,128 @@ std::string CGDB::get_cell_filename(const std::string& cell){
     return(fname);
 }
 
+// DataFrame CGDB::create_sparse_matrix(const IntegerVector& idxs, const std::vector<std::string>& cells){
+//         if (!valid_indexes(idxs)){
+//         stop("some indexes are out of scope");
+//     }
+//     std::vector<float> all_cov(m_CPG_NUM+1, 0); 
+//     std::vector<float> all_meth(m_CPG_NUM+1, 0);
+//     std::vector<int> all_idxs = as<std::vector<int> >(idxs);  
+
+//     std::vector<float> all_cell_cov(idxs.length(), 0);
+//     std::vector<float> all_cell_meth(idxs.length(), 0);    
+
+//     std::vector<float> sparse_cov;
+//     std::vector<float> sparse_meth;
+//     std::vector<int> sparse_idx;
+//     std::vector<int> cell_indices;
+    
+//     ProgressReporter progress;
+//     progress.init(cells.size(), 1);
+//     int idx = 0;
+//     for (unsigned i=0; i < cells.size(); ++i) {    
+//         cell_indices.push_back(idx);    
+//         int* cell_idx = NULL;
+//         float* cell_met = NULL;
+//         float* cell_cov = NULL;        
+        
+//         unsigned ncpgs = get_cell_data(cells[i], cell_idx, cell_met, cell_cov);
+//         if ((cell_idx != NULL) && (cell_met != NULL) && (cell_cov != NULL)) {
+            
+//             // scatter cell coverage to all_cov
+//             vsUnpackV(ncpgs, cell_cov, &all_cov[0], cell_idx);        
+
+//             // gather cell coverage 
+//             vsPackV(idxs.length(), &all_cov[0], &all_idxs[0], &all_cell_cov[0]);
+            
+//             // scatter cell methylation to all_meth
+//             vsUnpackV(ncpgs, cell_met, &all_meth[0], cell_idx);
+            
+//             // gather cell methylation 
+//             vsPackV(idxs.length(), &all_meth[0], &all_idxs[0], &all_cell_meth[0]);
+            
+//             for (unsigned j=0; j < all_cell_cov.size(); ++j){
+//                 if (all_cell_cov[j] > 0){                
+//                     sparse_cov.push_back(all_cell_cov[j]);
+//                     sparse_meth.push_back(all_cell_meth[j]);
+//                     sparse_idx.push_back(idxs[j]);
+//                     ++idx;
+//                 }
+//             }
+            
+//             // cell_mat[i].assign(cov_mat[i].size(), cells[i]);
+            
+//             // clean all_meth vector
+//             cblas_sscal(all_meth.size(), 0, &all_meth[0], 1);  
+//             cblas_sscal(all_cell_meth.size(), 0, &all_cell_meth[0], 1);    
+//             cblas_sscal(all_cov.size(), 0, &all_cov[0], 1);
+//             cblas_sscal(all_cell_cov.size(), 0, &all_cell_cov[0], 1);   
+//         }
+//         progress.report(1);
+//     }
+//     progress.report_last();
+
+//     sparse_status_t status;
+//     sparse_matrix_t cov_mat;
+//     sparse_matrix_t meth_mat;
+//     std::vector<int> cols_end;
+//     for (unsigned i=1; i<cell_indices.size(); ++i){
+//         cols_end.push_back(cell_indices[i] - 1);
+//     }
+//     cols_end.push_back(sparse_idx.size() + 1);
+//     status =  mkl_sparse_s_create_csc (&cov_mat, SPARSE_INDEX_BASE_ONE, idxs.length(), cells.size(), &cell_indices[0], &cols_end[0], &sparse_idx[0], &sparse_cov[0]);
+//     cout << status << endl;
+
+//     cout << "length sparse_cov: " << sparse_cov.size() << endl;
+//     cout << "length sparse_meth: " << sparse_meth.size() << endl;
+//     cout << "length sparse_idx: " << sparse_idx.size() << endl;
+//     cout << "length cols_end: " << cols_end.size() << endl;
+//     cout << cols_end[0] << ' ' << cols_end[1] << endl;
+//     cout << "length cell_indices: " << cell_indices.size() << endl;
+//     cout << cell_indices[0] << ' ' << cell_indices[1] << endl;
+
+//     MKL_INT rows=0, cols=0;
+//     sparse_index_base_t indexing;
+//     MKL_INT *columns_C = NULL, *pointerB_C = NULL, *pointerE_C = NULL;
+//     float  *values_C = NULL;
+//     mkl_sparse_s_export_csc(cov_mat, &indexing, &rows, &cols, &pointerB_C, &pointerE_C, &columns_C, &values_C);
+
+//     // Print the number of rows and columns of converted matrix (which are incorrect sizes)
+//     printf("\nrows = %i , cols = %i", rows, cols);
+//     cout << endl;
+
+//     cout << "here-1" << endl;
+//     status =  mkl_sparse_s_create_csc (&meth_mat, SPARSE_INDEX_BASE_ONE, idxs.length(), cells.size(), &cell_indices[0], &cols_end[0], &sparse_idx[0], &sparse_meth[0]);
+//     cout << status << endl;
+
+//     cout << "here0" << endl;
+//     sparse_matrix_t res = NULL;
+//     cout << "here1" << endl;
+//     // status = mkl_sparse_spmm (SPARSE_OPERATION_TRANSPOSE, cov_mat, cov_mat, &res);
+//     // cout << "here2" << endl;
+//     // if( mkl_sparse_destroy( res ) != SPARSE_STATUS_SUCCESS){ 
+//     //     printf(" Error after MKL_SPARSE_DESTROY, res \n");
+//     //     fflush(0); 
+//     // }
+
+//     // cout << status << endl; 
+//     // MKL_INT rows1=0, cols1=0;
+//     // mkl_sparse_z_export_csc(res, &indexing, &rows1, &cols1, &pointerB_C, &pointerE_C, &columns_C, &values_C);
+
+//     // Print the number of rows and columns of converted matrix (which are incorrect sizes)
+//     // printf("\nrows = %i , cols = %i\n", rows1, cols1);
+    
+
+//     // NumericVector idxs_vector = wrap(sparse_idx);        
+//     // NumericVector cov_vector = wrap(sparse_cov);    
+//     // NumericVector meth_vector = wrap(sparse_meth);
+
+//     // StringVector cell_vector = do_call(c, wrap(cell_mat));    
+//     return DataFrame::create(_["id"]=wrap(cell_indices), _["cols_end"] = wrap(cols_end));
+//     // return DataFrame::create(_["id"]=idxs_vector, _["cov"]=cov_vector, _["meth"]=meth_vector);
+
+// }
+
 ////////////////////////////////////////////////////////////////////////
 unsigned CGDB::get_cell_data(const std::string& cell, int*& cell_idx, float*& cell_met, float*& cell_cov){
 
@@ -390,23 +512,6 @@ List CGDB::extract(const IntegerVector& idxs, const std::vector<std::string>& ce
 	return res;	
 }
 
-// NumericMatrix CGDB::count_pairs_all(const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2){
-
-//     std::vector<std::vector<int> > counts(cells1.size(), std::vector<int>(4, 0));
-
-//     ProgressReporter progress;
-//     progress.init(cells1.size(), 1);
-//     for (unsigned i=0; i < cells1.size(); i++){
-//         count_pairs(idxs, cells1[i], cells2[i], counts[i]);
-//         progress.report(1);
-//     }
-//     progress.report_last();
-
-//     Function rbind("rbind");
-//     Function do_call("do.call");
-//     NumericMatrix counts_mat = do_call(rbind, wrap(counts));
-//     return(counts_mat);
-// }
 
 NumericMatrix CGDB::count_pairs_all(const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2){
 
@@ -514,6 +619,89 @@ NumericMatrix CGDB::count_pairs_all(const IntegerVector& idxs, const std::vector
     NumericMatrix counts_mat = do_call(rbind, wrap(counts));
     return(counts_mat);
 }
+
+// NumericMatrix CGDB::count_pairs_all(const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2){
+
+//     std::vector<std::vector<int> > counts(cells1.size(), std::vector<int>(4, 0));
+
+//     ProgressReporter progress;
+//     progress.init(cells1.size(), 1);
+//     std::string cell_id;
+//     for (unsigned i=0; i < cells1.size(); i++){
+//         if (i == 0 || cells1[i].compare(cell_id) != 0){
+//             // get cell1 data
+//             int* cell1_idx = NULL;
+//             float* cell1_met = NULL;
+//             float* cell1_cov = NULL;
+//             unsigned ncpgs1 = get_cell_data(cells1[i], cell1_idx, cell1_met, cell1_cov);
+
+//             int* cell2_idx = NULL;
+//             float* cell2_met = NULL;
+//             float* cell2_cov = NULL;
+//             unsigned ncpgs2 = get_cell_data(cells2[i], cell2_idx, cell2_met, cell2_cov);  
+
+//             if ((cell1_idx != NULL) && (cell1_met != NULL) && (cell1_cov != NULL) && (cell2_idx != NULL) && (cell2_met != NULL) && (cell2_cov != NULL)) {
+
+//                 unsigned cell1_i = 0;
+//                 unsigned cell2_i = 0;
+//                 unsigned idx_i = 0;    
+//                 unsigned cur_idx = idxs[0];                                           
+//                 cout << "1" << endl;
+//                 cout << "cell1_i: " << cell1_i << endl;
+//                 cout << "cell2_i: " << cell2_i << endl;
+//                 cout << "cell1_idx[cell1_i]: " << cell1_idx[cell1_i] << endl;
+//                 cout << "cell2_idx[cell2_i]: " << cell2_idx[cell2_i] << endl;
+
+//                 while(cell1_i < ncpgs1 && 
+//                       cell2_i < ncpgs2 &&
+//                       idx_i < idxs.length() ){
+//                     cur_idx = idxs[idx_i];
+//                     cout << "2" << endl;
+//                     cout << "cur_idx: " << cur_idx << endl;
+//                     cout << "cell1_i: " << cell1_i << endl;
+//                     cout << "cell2_i: " << cell2_i << endl;
+//                     cout << "cell1_idx[cell1_i]: " << cell1_idx[cell1_i] << endl;
+//                     cout << "cell2_idx[cell2_i]: " << cell2_idx[cell2_i] << endl;
+
+//                     while(cell1_idx[cell1_i] < cur_idx){
+//                         cell1_i++;
+//                     }
+
+//                     while(cell2_idx[cell2_i] < cur_idx){
+//                         cell2_i++;
+//                     }
+//                     cout << "3" << endl;
+//                     cout << "cur_idx: " << cur_idx << endl;
+//                     cout << "cell1_i: " << cell1_i << endl;
+//                     cout << "cell2_i: " << cell2_i << endl;
+//                     cout << "cell1_idx[cell1_i]: " << cell1_idx[cell1_i] << endl;
+//                     cout << "cell2_idx[cell2_i]: " << cell2_idx[cell2_i] << endl;
+
+//                     if (cell1_i < ncpgs1 && cell2_i < ncpgs2 && cell1_idx[cell1_i] == cell2_idx[cell2_i] && cell1_cov[cell1_i] > 0 && cell2_cov[cell2_i] > 0){
+//                         // count pairs
+//                         if (cell1_met[cur_idx] == 0 && cell2_met[cur_idx] == 0){
+//                             counts[i][0]++;
+//                         } else if (cell1_met[cur_idx] == 0 && cell2_met[cur_idx] == 1){
+//                             counts[i][1]++;
+//                         } else if (cell1_met[cur_idx] == 1 && cell2_met[cur_idx] == 0){
+//                             counts[i][2]++;
+//                         } else if (cell1_met[cur_idx] == 1 && cell2_met[cur_idx] == 1){
+//                             counts[i][3]++;
+//                         }
+//                     }
+//                     idx_i++;                    
+//                 }
+//             }
+//         }                
+//         progress.report(1);
+//     }      
+//     progress.report_last();
+
+//     Function rbind("rbind");
+//     Function do_call("do.call");
+//     NumericMatrix counts_mat = do_call(rbind, wrap(counts));
+//     return(counts_mat);
+// }
 
 std::vector<int> CGDB::count_pairs(const IntegerVector& idxs, const std::string& cell1, const std::string& cell2, std::vector<int>& counts){
 

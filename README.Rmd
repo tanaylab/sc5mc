@@ -21,18 +21,15 @@ it includes basic pipeline to import data from raw fastq, as well as functions f
 Source code can be found at: https://bitbucket.org/tanaylab/sc5mc
 
 
-### Installation 
-#### Requirements 
-- _gpatterns_ (https://bitbucket.org/tanaylab/gpatterns)
+## Installation
+Please make sure that you loaded the MKL module: 
 
-
-#### Installing gpatterns package:
-Download and install *gpatterns*: 
-```{r, eval = FALSE}
-devtools::install_bitbucket("tanaylab/gpatterns", ref='default')
-devtools::install_bitbucket("tanaylab/sc5mc", ref='default')
-library(sc5mc)
+```{bash, eval=FALSE}
+ml load mkl
 ```
 
-#### Using the package
-Please refer to the package vignettes for usage and workflow. 
+And then run:
+
+```{r, eval=FALSE}
+install.packages('sc5mc', repos=c(getOption('repos'), 'https://tanaylab.bitbucket.io/repo'))
+```
