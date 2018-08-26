@@ -10,6 +10,13 @@ downsample_tab <- function(tab, n = NULL){
     return(tab)
 }
 
+downsample_df <- function(df, columns, n=NULL){    
+    tab <- df %>% select(!!! rlang::syms(columns))        
+    ds_tab <- downsample_tab(t(tab), n=n)
+    ds_tab <- t(ds_tab) %>% as.data.frame() %>% rlang::set_names(colnames(tab))
+    return(df %>% select(-one_of(columns)) %>% bind_cols(ds_tab))
+}
+
 downsample_cpgs <- function(tab, n=NULL){
 	tab <- tab %>% select(cell_id, cov, meth)
 	if (is.null(n)){
@@ -21,12 +28,12 @@ downsample_cpgs <- function(tab, n=NULL){
     	mutate(unmeth = cov - meth) %>% 
     	select(cell_id, meth, unmeth) %>% 
     	as.data.frame() %>% 
-    	column_to_rownames('cell_id') %>% 
+    	tibble::column_to_rownames('cell_id') %>% 
     	t() %>% 
     	downsample_tab(n=n) %>%
     	t() %>% 
     	as.data.frame() %>% 
-    	rownames_to_column('cell_id') %>% 
+    	tibble::rownames_to_column('cell_id') %>% 
     	rlang::set_names(c('cell_id', 'meth', 'unmeth')) %>% 
     	as_tibble()
 

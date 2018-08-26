@@ -41,7 +41,7 @@ plot_cg_cont_trend <- function(d, x='`(0.01,0.02]`', y='`(0.02,0.03]`', xlab=NUL
     }
 
     breaks_to_label <- function(str){
-        stringr::str_split(str, ',')[[1]] %>% gsub('`', '', .) %>% gsub('\\(', '', .) %>% gsub('\\[', '', .)  %>% gsub('\\)', '', .) %>% gsub('\\]', '', .) %>% gsub(' ', '', .) %>% as.numeric() %>% scales::percent(accuracy=1) %>% paste(collapse = '-')
+        stringr::str_split(str, ',')[[1]] %>% gsub('`', '', .) %>% gsub('\\(', '', .) %>% gsub('\\[', '', .)  %>% gsub('\\)', '', .) %>% gsub('\\]', '', .) %>% gsub(' ', '', .) %>% as.numeric() %>% scales::percent() %>% paste(collapse = '-')
     }
 
     xlab <- xlab %||% breaks_to_label(x)
@@ -61,7 +61,7 @@ plot_cg_cont_trend <- function(d, x='`(0.01,0.02]`', y='`(0.02,0.03]`', xlab=NUL
         ylab <- glue('{ylab} ({scales::comma(y_dsn)})')
     }
     
-    p <- d %>% ggplot(aes_string(x=x, y=y, color=color_column)) + geom_point(size=0.5, shape=19, alpha=0.5) + xlab(xlab) + ylab(ylab) + ggsci::scale_color_lancet()
+    p <- d %>% ggplot(aes_string(x=x, y=y, color=color_column)) + geom_point(size=point_size, shape=19, alpha=0.5) + xlab(xlab) + ylab(ylab) + ggsci::scale_color_lancet()
 
     if (plot_sd && x_dsn_col %in% colnames(d)){
         if (sd_per_group){            

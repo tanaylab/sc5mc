@@ -24,6 +24,9 @@ class CGDB {
         std::unordered_map<std::string, float*> m_cell_met;
         std::unordered_map<std::string, int> m_ncpgs;
 
+        // std::string m_smat; 
+        // int m_smat_len; 
+
         void add_cell_data(std::string const& cell);
 
         unsigned get_cell_data(std::string const& cell, int*& cell_idx, float*& cell_met, float*& cell_cov);        
@@ -52,6 +55,10 @@ class CGDB {
                 unmap_file(n.second, m_ncpgs[n.first]);                
             }     
             m_cell_met.clear();
+
+            // if (!m_smat.empty()){
+            //     unmap_file(m_smat, m_smat_len);
+            // }
         }
 
         ~CGDB(){
@@ -72,6 +79,8 @@ class CGDB {
 
         NumericMatrix count_pairs_all(const IntegerVector& idxs, const std::vector<std::string>& cells1, const std::vector<std::string>& cells2);
         std::vector<int> count_pairs(const IntegerVector& idxs, const std::string& cell1, const std::string& cell2, std::vector<int>& counts);
+
+        // DataFrame create_sparse_matrix(const IntegerVector& idxs, const std::vector<std::string>& cells);
 
 };
 
