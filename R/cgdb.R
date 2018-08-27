@@ -474,6 +474,7 @@ summarise_cells_by_group <- function(db, tidy=TRUE, add_metadata=TRUE){
 #' 
 #' @export
 summarise_cells <- function(db, cells=NULL, add_metadata=TRUE){
+
     if (is_grouped_df(db@cpgs)){
         return(as_tibble(summarise_by_both_groups(db)))
     } else {
@@ -481,7 +482,9 @@ summarise_cells <- function(db, cells=NULL, add_metadata=TRUE){
         scdata <- mean_meth_per_cpg(db, idxs=db@cpgs$id, cells=cells)   
         if (add_metadata)     {
             scdata <- db@cpgs %>% select(-id) %>% bind_cols(scdata)
-        }        
+        } else {
+            scdata <- db@cpgs %>% select(chrom, start, end) %>% bind_cols(scdata)
+        }
     }
     
     return(as_tibble(scdata))
