@@ -1,11 +1,3 @@
----
-output: github_document
----
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
-
-
 # The sc5mc Package - Analysis of Single Cell Methylation
 
 This package provides a set of tools for the analysis of single cell methylation.
