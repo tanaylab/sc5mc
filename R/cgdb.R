@@ -461,10 +461,14 @@ summarise_cells_by_group <- function(db, tidy=TRUE, add_metadata=TRUE){
         res <- db@cells %>% do(summarise_cells(db, .$cell_id, add_metadata=add_metadata)) %>% ungroup() %>% select(chrom, start, end, everything())  
     } else {        
         d <- db@cells %>% ungroup() %>% plyr::dlply(cell_groups(db), function(x) summarise_cells(ungroup_cells(db), x$cell_id, add_metadata=FALSE), .parallel = TRUE)
+        
         res <- list()
-        res$cov <- do.call('cbind', map(d, ~ .x[[2]])) %>% as.matrix()
-        res$meth <- do.call('cbind', map(d, ~ .x[[3]])) %>% as.matrix()                
+        res$cov <- do.call('cbind', map(d, ~ .x$cov)) %>% as.matrix()
+        res$meth <- do.call('cbind', map(d, ~ .x$meth)) %>% as.matrix()                
         res$intervs <- db@cpgs        
+        if (!add_metadata){
+            res$intervs <- res$intervs %>% select(chrom, start, end, id)
+        }
     }
 
     return(res)
