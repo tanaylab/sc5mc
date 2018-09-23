@@ -588,6 +588,28 @@ intervals_cell_cov <- function(db, intervals, min_cov=1){
     return(res)
 }
 
+intervals_num_cpgs_per_group <- function(db, intervals){
+    if (is.numeric(intervals)){
+        intervals <- giterator.intervals(iterator=intervals)
+    }    
+
+    db <- db %>% gintervals.neighbors_cpgs(intervals) %>% filter_cpgs(dist == 0, !is.na(chrom1))
+   
+
+    # bin_intervs <- bin_intervs %>% ungroup() %>% mutate(bin = bins) %>% distinct(chrom1, start1, end1, bin) %>% select(chrom=chrom1, start=start1, end=end1)
+    cov_data <- db %>% summarise_cells_by_group(tidy=FALSE, add_metadata=FALSE)
+
+    bin_intervs <-  cov_data$intervs %>% gintervals.neighbors1(intervals) %>% group_by(chrom1, start1, end1)  
+    bins <- bin_intervs %>% group_indices() 
+
+    num_cgs <- tgstat::tgs_matrix_tapply(t(as.matrix(cov_data$cov > 0) + 0), bins, sum)
+
+    colnames(num_cgs) <- colnames(cov_data$cov)
+    num_cgs_d <- bind_cols(bin_intervs %>% distinct(chrom1, start1, end1) %>% select(chrom = chrom1, start = start1, end = end1) %>% ungroup(), as.data.frame(num_cgs))
+    return(num_cgs_d)  
+
+}
+
 # CPP helper functions
 mean_meth_per_cpg <- function(db, idxs, cells){
     bins <- 1:length(idxs)       
