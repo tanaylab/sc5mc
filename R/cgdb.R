@@ -562,7 +562,8 @@ intervals_cell_cov <- function(db, intervals, min_cov=1){
         intervals <- giterator.intervals(iterator=intervals)
     }    
 
-    bin_intervs <- db %>% gintervals.neighbors_cpgs(intervals) %>% .@cpgs %>% group_by(chrom1, start1, end1)  
+    db <- db %>% gintervals.neighbors_cpgs(intervals) %>% filter_cpgs(dist == 0, !is.na(chrom1))
+    bin_intervs <-  db@cpgs  %>% group_by(chrom1, start1, end1)  
     bins <- bin_intervs %>% group_indices() 
 
     bin_intervs <- bin_intervs %>% ungroup() %>% mutate(bin = bins) %>% distinct(chrom1, start1, end1, bin) %>% select(chrom=chrom1, start=start1, end=end1)
@@ -582,7 +583,7 @@ intervals_cell_cov <- function(db, intervals, min_cov=1){
         
         return(rowSums(x, ...))        
     }
-
+    
     res <- db@cells %>% do(mutate(bin_intervs, cell_cov = row_sums(cov_tab[, .$cell_id])[-1])) %>% ungroup()
     return(res)
 }
