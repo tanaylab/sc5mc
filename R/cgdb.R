@@ -595,8 +595,6 @@ intervals_num_cpgs_per_group <- function(db, intervals){
 
     db <- db %>% gintervals.neighbors_cpgs(intervals) %>% filter_cpgs(dist == 0, !is.na(chrom1))
    
-
-    # bin_intervs <- bin_intervs %>% ungroup() %>% mutate(bin = bins) %>% distinct(chrom1, start1, end1, bin) %>% select(chrom=chrom1, start=start1, end=end1)
     cov_data <- db %>% summarise_cells_by_group(tidy=FALSE, add_metadata=FALSE)
 
     bin_intervs <-  cov_data$intervs %>% gintervals.neighbors1(intervals) %>% group_by(chrom1, start1, end1)  

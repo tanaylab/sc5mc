@@ -1,0 +1,6 @@
+mcell_mc2d_K: 50
+mcell_mc2d_T_edge: 0.04
+mcell_mc2d_max_confu_deg: 3
+mcell_mc2d_edge_asym: false
+mcell_mc2d_proj_blur: 0.02
+mcell_mc2d_K_cellproj: 20
