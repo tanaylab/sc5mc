@@ -618,6 +618,8 @@ mean_meth_per_cpg <- function(db, idxs, cells){
 
 bin_meth_per_cell <- function(db, idxs, bins, cells, tidy=TRUE){    
     res <- bin_meth_per_cell_cpp(db@.xptr, idxs, bins, cells)
+    res$cov <- as_tibble(res$cov)
+    res$meth <- as_tibble(res$meth)
     res$cov <- res$cov[-1, ]
     res$meth <- res$meth[-1, ]
     
