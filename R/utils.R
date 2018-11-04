@@ -1,4 +1,11 @@
 downsample_tab <- function(tab, n = NULL){
+
+    if (!is.null(rownames(tab))){
+        rownames_tab <- rownames(tab)
+    } else {
+        rownames_tab <- NULL
+    }
+
     tab <- as_tibble(tab)
     if (is.null(n)){
         n <- min(colSums(tab))
@@ -7,6 +14,12 @@ downsample_tab <- function(tab, n = NULL){
         v <- tab[[i]]
         tab[[i]] <- tabulate(sample(rep(1:length(v),times=v), replace=FALSE,size=n), nbins=length(v))
     }
+
+    if (!is.null(rownames_tab)){
+        tab <- as.data.frame(tab)
+        rownames(tab) <- rownames_tab
+    }
+
     return(tab)
 }
 

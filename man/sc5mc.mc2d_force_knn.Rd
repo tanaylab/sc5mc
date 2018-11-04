@@ -2,9 +2,9 @@
 % Please edit documentation in R/mc2d_force_knn.r
 \name{sc5mc.mc2d_force_knn}
 \alias{sc5mc.mc2d_force_knn}
-\title{Metacell layout using force directed pojrection of a low degree mc graph}
+\title{Metacell layout using force directed projection of a low degree mc graph}
 \usage{
-sc5mc.mc2d_force_knn(mc, cgraph, ignore_mismatch = F)
+sc5mc.mc2d_force_knn(mc_map, cgraph)
 }
 \arguments{
 \item{mc2d_id}{2d object to add}
@@ -16,5 +16,5 @@ sc5mc.mc2d_force_knn(mc, cgraph, ignore_mismatch = F)
 \item{mc_subset}{a subset of metacells to project (NULL by default)}
 }
 \description{
-Metacell layout using force directed pojrection of a low degree mc graph
+Metacell layout using force directed projection of a low degree mc graph
 }
