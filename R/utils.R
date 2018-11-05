@@ -54,3 +54,9 @@ downsample_cpgs <- function(tab, n=NULL){
 
     return(ds_tab)
 }
+
+
+# debug utils
+read_cell_binary_files <- function(db, plate, cell, n=1e6){
+    tibble(id = readBin(glue('{db@db_root}/data/{plate}/{cell}.idx.bin'), what=integer(), size=4, n=1e6), cov = readBin(glue('{db@db_root}/data/{plate}/{cell}.cov.bin'), what=integer(), size=4, n=1e6), meth = readBin(glue('{db@db_root}/data/{plate}/{cell}.meth.bin'), what=integer(), size=4, n=1e6))
+}

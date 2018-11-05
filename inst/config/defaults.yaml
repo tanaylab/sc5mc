@@ -71,6 +71,9 @@ steps: &steps
         cell_metadata: '{workdir}/cell_metadata.csv'
         keep_tidy_cpgs: true
         load_existing: false
-        <<: *steps_defaults           
+        gen_reads: true
+        <<: *steps_defaults      
+
+
 
 

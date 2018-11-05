@@ -1,8 +1,7 @@
 #' Create smat object from mapped reads (bam files)
 #'
 #' @param metadata data frame with 'lib' column with the library name (ususally cell id)
-#' and 'bam' column with bam files. Multiple bams of the same cell should appear
-#' in separate rows.
+#' and 'bam' column with bam files. Multiple bams of the same cell should appear in separate rows.
 #'
 #' @param groot misha db path
 #' @param prefix path prefix in which to save the smat files. if NULL the object
@@ -278,3 +277,24 @@ tcpgs2calls <- function(tcpgs, track){
 #     tibble(cell_id = list.files(smat$tidy_cpgs_dir)) %>% 
 #         purrrlyr::by_row(~ list.files(glue('{smat$tidy_cpgs_dir}/{.x$cell_id}/tidy_cpgs'), pattern='.*\\.tcpgs.gz$', full.names=TRUE), .to='files')
 # }
+
+#' @export
+sc5mc.reads_from_bams <- function(metadata, prefix=NULL, workdir=tempdir(), use_sge=TRUE, io_saturation=FALSE, threads=10, ...){
+    bam2reads <- function(bams, lib, workdir=workdir, ...){
+        track_workdir <- paste0(prefix, '_reads')
+        system(sprintf('mkdir -p %s', track_workdir))
+        reads <- gpatterns.bam2uniq_reads(bams, ...)
+        fwrite(reads, glue('{track_workdir}/{lib}.tsv'))
+    }
+    
+    cmds <- plyr::daply(metadata, plyr::.(lib), function(x) {
+        bams <- paste(qqv("'@{x$bam}'"), collapse=', ')
+        qq("bam2reads(c(@{bams}), lib = '@{x$lib[1]}', workdir='@{workdir}', ...)")
+    })
+
+    if (use_sge){        
+        res <- gpatterns::gcluster.run2(command_list=cmds, io_saturation=io_saturation, threads=threads, packages='gpatterns')        
+    } else {
+        res <- map(cmds, ~ eval(parse(text=.x)))         
+    }    
+}

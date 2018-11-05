@@ -12,8 +12,7 @@ smat.from_bams(metadata, groot, prefix = NULL, workdir = tempdir(),
 }
 \arguments{
 \item{metadata}{data frame with 'lib' column with the library name (ususally cell id)
-and 'bam' column with bam files. Multiple bams of the same cell should appear
-in separate rows.}
+and 'bam' column with bam files. Multiple bams of the same cell should appear in separate rows.}
 
 \item{groot}{misha db path}
 
