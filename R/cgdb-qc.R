@@ -32,13 +32,13 @@ qc_plot <- function(db, ofn=NULL, base_height=12, min_cgc_cov=300, return_all_fi
 	plots$p_cell_cov <- sc5mc.plot_cell_marginals_bars(db)
 
 	plots$p_cgc_low <- plot_cg_cont_trend(cgc_meth, x='`(0.01,0.02]`', y='`(0.02,0.03]`') + coord_cartesian(xlim=c(0,1), ylim=c(0,1))
-	plots$p_cgc_low_high <- plot_cg_cont_trend(cgc_meth, x='`(0.01,0.02]`', y='`(0.08,0.12]`') + guides(color=FALSE) + coord_cartesian(xlim=c(0,1), ylim=c(0,1))
+	plots$p_cgc_low_high <- plot_cg_cont_trend(cgc_meth, x='`(0.01,0.02]`', y='`(0.08,0.12]`') + guides(color=FALSE) + coord_cartesian(xlim=c(0,1), ylim=c(0,0.3))
 
 	high_cgc_meth <- db %>% ungroup_cells() %>% ungroup_cpgs() %>% get_cgc_trend(min_cov=min_cgc_cov, breaks=c(seq(0.08,0.1,0.01), 1), downsample=downsample) 
 	if (length(groups(stats)) > 0){		
 		high_cgc_meth <- high_cgc_meth %>% group_by(!!! groups(stats))	
 	}	
-	plots$p_cgc_high <- high_cgc_meth %>% plot_cg_cont_trend(x='`(0.08,0.09]`', y='`(0.09,0.1]`')  + guides(color=FALSE) + coord_cartesian(xlim=c(0,1), ylim=c(0,1))
+	plots$p_cgc_high <- high_cgc_meth %>% plot_cg_cont_trend(x='`(0.08,0.09]`', y='`(0.09,0.1]`')  + guides(color=FALSE) + coord_cartesian(xlim=c(0,0.3), ylim=c(0,0.3))
 	
 	plots$p_cgc_chh <- plot_cg_cont_trend(cgc_meth, x='`(0.01,0.02]`', y='CHH', ylab='%CHH') + scale_y_continuous(labels = scales::percent) + guides(color=FALSE) + coord_cartesian(xlim=c(0,1))
 

@@ -423,7 +423,7 @@ sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=
 
 
 #' @export
-sc5mc.smat_per_experiment <- function(config, groot=NULL, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', run_commands=TRUE, log_prefix=TRUE, keep_tidy_cpgs=TRUE, load_existing=FALSE, cell_metadata=NULL, single_cell=TRUE, step_file=NULL, ...){	
+sc5mc.smat_per_experiment <- function(config, groot=NULL, prefix=NULL, workdir=tempdir(), use_sge = TRUE, name='', description='', run_commands=TRUE, log_prefix=TRUE, keep_tidy_cpgs=TRUE, load_existing=FALSE, cell_metadata=NULL, single_cell=TRUE, step_file=NULL, gen_reads=TRUE, ...){	
 	orig_config <- config
 
 	if (has_name(config, 'experiment_type')){
@@ -455,8 +455,13 @@ sc5mc.smat_per_experiment <- function(config, groot=NULL, prefix=NULL, workdir=t
 
 		cmd_cfg <- exp_cfg %>% filter(experiment == exp_name) 
 		exp_config <- config %>% filter(experiment == exp_name)
-		
+
 		gpatterns:::do.call_tibble(sc5mc:::smat.from_bams, cmd_cfg, list(metadata=exp_config, use_sge=use_sge, keep_tidy_cpgs=keep_tidy_cpgs, load_existing=load_existing, cell_metadata=cell_metadata, single_cell=single_cell))
+
+		if (gen_reads){
+			logging::loginfo('generating reads for experiment: %s', exp_name)
+			gpatterns:::do.call_tibble(sc5mc:::sc5mc.reads_from_bams, cmd_cfg, list(metadata=exp_config, use_sge=use_sge))
+		}		
 	}
 	
 	if (run_commands){

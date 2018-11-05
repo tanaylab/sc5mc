@@ -40,7 +40,7 @@ cgdb_validate_cells <- function(db){
 #' @slot db_root 
 #' @slot cpgs 
 #' @slot cells 
-#' @slot plates
+#' @slot CPG_NUM
 #'
 #' @exportClass cgdb
 #' 
@@ -156,17 +156,13 @@ cgdb_save <- function(db, path=NULL, force=FALSE){
     return(NULL) 
 }
 
-#' Initialize cgdb database
-#' 
-#' @param db_root root directory of the cgdb database
-#' @param intervals cpg intervals (id NULL 'intervs.global.seq_CG' from the current misha database would be used)
-#' @param overwrite overwrite existing db
-#' 
-#' @export
-cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){    
+.create_cgdb <- function(db_root, intervals, overwrite, add_cg_cont, cells=NULL){
     dir.create(db_root, recursive = TRUE, showWarnings = FALSE)
     dir.create(file.path(db_root, 'data'), recursive = TRUE, showWarnings = FALSE)
-    cells <- tibble(cell_id = character(), cell_num = numeric(), plate = character())
+
+    if (is.null(cells)){
+        cells <- tibble(cell_id = character(), cell_num = numeric(), plate = character())    
+    }    
     if (file.exists(glue('{db_root}/cells.csv')) && !overwrite){
         stop("db exist. Run with overwrite = TRUE to overwrite")
     }
@@ -181,15 +177,52 @@ cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE){
     
     cpgs <- intervals %>% arrange(chrom, start, end) %>% mutate(id = 1:n()) %>% as_tibble()
 
-    if (gtrack.exists("seq.CG_500_mean")){
+    if (gtrack.exists("seq.CG_500_mean") && add_cg_cont){
         gvtrack.create("cg500", "seq.CG_500_mean", "avg")    
         cpgs <- gextract.left_join('cg500', intervals=cpgs, iterator=cpgs) %>% select(-(chrom1:end1)) %>% as_tibble()
     }    
 
     fwrite(cpgs, glue('{db_root}/cpgs.csv'), sep=',')
     flock::unlock(l)
-    db <- new('cgdb', db_root=db_root, cpgs=cpgs, cells=cells, CPG_NUM=nrow(cpgs))
+
+    return(list(cpgs=cpgs, cells=cells))
+}
+
+#' Initialize cgdb database
+#' 
+#' @param db_root root directory of the cgdb database
+#' @param intervals cpg intervals (id NULL 'intervs.global.seq_CG' from the current misha database would be used)
+#' @param overwrite overwrite existing db
+#' @param add_cg_cont pre-compute CpG content of each CpG
+#' 
+#' @export
+cgdb_init <- function(db_root, intervals=NULL, overwrite=FALSE, add_cg_cont=TRUE){    
+    l <- .create_cgdb(db_root=db_root, intervals=intervals, overwrite=overwrite, add_cg_cont=add_cg_cont)
+    db <- new('cgdb', db_root=db_root, cpgs=l$cpgs, cells=l$cells, CPG_NUM=nrow(l$cpgs))
     return(db)
+}
+
+setMethod("show", 
+          "cgdb", 
+          function(object){
+            cgdb_info(object)
+          }
+)
+
+cgdb_info <- function(db){
+    ncells <- comify(nrow(db@cells))
+    ncpgs <- comify(nrow(db@cpgs))
+    message(glue('cgdb object\n{ncpgs} CpGs X {ncells} cells'))    
+    message(glue('--- root (@db_root): {db@db_root}'))
+    if (length(cell_groups(db)) > 0){
+        groups <- paste(cell_groups(db), collapse = ', ')
+        message(glue('--- cell groups: {groups}'))    
+    }
+
+    if (length(cpg_groups(db)) > 0){
+        groups <- paste(cpg_groups(db), collapse = ', ')
+        message(glue('--- CpG groups: {groups}'))    
+    }
 }
 
 cgdb_update_cells <- function(db, cells, append=FALSE){   
@@ -330,8 +363,7 @@ cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE, update_cel
     cells <- smat$cell_metadata %>% 
         left_join(tibble(cell_id = colnames(smat)), by = "cell_id") %>% 
         select(-one_of('plate')) %>% 
-        separate(cell_id, c('plate', 'cell_num'), sep='\\.', remove=FALSE) %>%          
-        # mutate(cell_num = as.numeric(cell_num)) %>% 
+        separate(cell_id, c('plate', 'cell_num'), sep='\\.', remove=FALSE) %>%
         arrange(cell_num)
 
     if (has_stats(smat)){        
@@ -928,33 +960,7 @@ pull_cpgs <- function(db){
 }
 
 
-setMethod("show", 
-          "cgdb", 
-          function(object){
-            cgdb_info(object)
-          }
-)
 
-cgdb_info <- function(db){
-    ncells <- comify(nrow(db@cells))
-    ncpgs <- comify(nrow(db@cpgs))
-    message(glue('cgdb object\n{ncpgs} CpGs X {ncells} cells'))    
-    message(glue('--- root (@db_root): {db@db_root}'))
-    if (length(cell_groups(db)) > 0){
-        groups <- paste(cell_groups(db), collapse = ', ')
-        message(glue('--- cell groups: {groups}'))    
-    }
-
-    if (length(cpg_groups(db)) > 0){
-        groups <- paste(cpg_groups(db), collapse = ', ')
-        message(glue('--- CpG groups: {groups}'))    
-    }
-    
-    # message('\n--- Cells (@cells):')
-    # print(db@cells)
-    # message('\n--- CpGs (@cpgs):')
-    # print(db@cpgs)
-}
 
 #' Count methylation calls (00,01,10,11) for pairs of cells
 #' 

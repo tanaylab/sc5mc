@@ -185,7 +185,6 @@ smat.save <- function(smat, prefix, create_dirs=TRUE){
     invisible(smat)
 }
 
-
 #' Load smat object from disk
 #'
 #' @param prefix path prefix of the location of the smat files
