@@ -1,6 +1,6 @@
 Package: sc5mc
 Title: Single Cell Methylation Analysis Suite
-Version: 0.1.29
+Version: 0.1.30
 Authors@R: c(person("Aviezer", "Lifshitz", email = "aviezer.lifshitz@weizmann.ac.il",
     role = c("aut", "cre")),    
     person("Amos", "Tanay", role=c("aut")))
@@ -30,7 +30,7 @@ Imports:
     glue,
     memoise,
     yaml,
-    flock,
+    filelock,
     Rcpp,
     zeallot,
     fs,

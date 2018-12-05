@@ -125,3 +125,7 @@ pileup_cell_reads <- function(db, reads){
 
     return(pileup)
 }
+
+cells_pileup <- function(db, binsize){
+    db %>% summarise_intervals(giterator.intervals(iterator=binsize)) %>% select(-meth)
+}
