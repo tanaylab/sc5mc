@@ -225,159 +225,6 @@ cgdb_info <- function(db){
     }
 }
 
-cgdb_update_cells <- function(db, cells, append=FALSE){   
-    if (append){
-        if (!is.character(db@cells$cell_num)){
-            db@cells$cell_num <- as.character(db@cells$cell_num)
-        }
-        if (!is.character(cells$cell_num)){
-            cells$cell_num <- as.character(cells$cell_num)
-        }
-        cells <- bind_rows(db@cells %>% filter(!(cell_id %in% cells$cell_id)), cells)
-    }
-    l <- flock::lock(glue('{db@db_root}/.cells_lock'))
-    fwrite(cells, glue('{db@db_root}/cells.csv'), sep=',')    
-    flock::unlock(l)
-    db@cells <- cells
-    return(db)
-}
-
-#' Remove plate from cgdb
-#' 
-#' @param plate_name name of the plate
-#' @param force force remove (no user prompt)
-#' 
-#' @export
-cgdb_remove_plate <- function(db, plate_name, force=FALSE){
-    response <- readline(glue('Are you sure you want to remove {plate_name} and all of it\'s cells (Y/N)?'))
-    if (response == 'Y' || force){
-        cells <- db@cells %>% filter(plate == plate_name) %>% pull(cell_id)
-        walk(cells, ~ cgdb_remove_cell(db, .x, force=TRUE))  
-        system(glue('rmdir {file.path(db@db_root, "data", plate_name)}'))
-        db <- cgdb_update_cells(db, db@cells %>% filter(!(cell_id %in% cells)), append=FALSE)
-    }    
-    
-    return(db)    
-}
-
-cgdb_remove_cell <- function(db, cell_id, force=FALSE){
-    if (!force){
-        response <- readline(glue('Are you sure you want to remove {cell_id} (Y/N)?'))    
-    } else {
-        response <- 'Y'
-    }
-    
-    if (response == 'Y'){
-        x <- stringr::str_split(cell_id, '\\.')[[1]]
-        file_pref <- file.path(db@db_root, 'data', x[1], x[2])
-        file.remove(glue('{file_pref}.idx.bin'))
-        file.remove(glue('{file_pref}.cov.bin'))
-        file.remove(glue('{file_pref}.meth.bin'))                
-    }
-}
-
-
-cgdb_add_cell <- function(db, df, cell, plate, overwrite=TRUE){    
-    dirname <- file.path(db@db_root, 'data', plate)
-    fname <- file.path(dirname, cell)
-
-    if (!file.exists(paste0(fname, '.idx.bin')) || overwrite){
-        dir.create(dirname, showWarnings=FALSE, recursive=TRUE)        
-        df <- df %>% left_join(db@cpgs) %>% arrange(id)
-        cov_vec <- df$cov
-        met_vec <- df$meth
-        idxs <- df$id
-
-        writeBin(idxs, paste0(fname, '.idx.bin'), size=4)                
-        writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
-        writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)
-        message(glue('created {cell}'))    
-    }
-    return(db)
-}
-
-cgdb_add_plate_from_df <- function(db, df, cells, plate_name=NULL, overwrite=TRUE, update_cells=TRUE, verbose=TRUE){
-    df <- df %>% inner_join(db@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id))
-
-    plyr::alply(cells, 1, function(x) {            
-            cell <- x$cell_id
-            plate <- x$plate
-            cell_num <- x$cell_num
-
-            dirname <- file.path(db@db_root, 'data', x$plate)
-            fname <- file.path(dirname, x$cell_num)
-
-            if (!file.exists(paste0(fname, '.idx.bin')) || overwrite){
-                dir.create(dirname, showWarnings=FALSE, recursive=TRUE)
-
-                d <- df %>% filter(cell == x$cell_id)                
-                cov_vec <- d$cov
-                met_vec <- d$meth
-                idxs <- d$id
-
-                writeBin(idxs, paste0(fname, '.idx.bin'), size=4)                
-                writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
-                writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)
-                if (verbose){
-                    message(glue('created {cell}'))     
-                }
-                
-            } 
-            
-        }, .parallel=TRUE)
-    
-    if (update_cells){
-        db@cells <- fread(glue('{db@db_root}/cells.csv')) %>% as_tibble()
-        db <- cgdb_update_cells(db, cells, append=TRUE)    
-    } else {
-        warning('cells.csv not updated')
-    }    
-    return(db)
-
-}
-
-#' Add sc5mc data of a plate from smat object
-#' 
-#' @param db cgdb object
-#' @param smat smat object
-#' @param plate_name name of the plate
-#' @param overwrite overwrite
-#' @param update_cells update cells.csv
-#' @param verbose verbose messages
-#' 
-#' @export
-cgdb_add_plate <- function(db, smat, plate_name=NULL, overwrite=TRUE, update_cells=TRUE, verbose=TRUE){
-    if (is.character(smat)){
-        smat <- smat.load(smat)
-    }
-    if (is.null(plate_name)){
-        if (is.null(smat$name)){
-            stop('Please provide a plate name') 
-        } else {
-            plate_name <- smat$name
-        }       
-    }
-
-    plate_fn <- glue('{db@db_root}/{plate_name}')
-    
-    cells <- smat$cell_metadata %>% 
-        left_join(tibble(cell_id = colnames(smat)), by = "cell_id") %>% 
-        select(-one_of('plate')) %>% 
-        separate(cell_id, c('plate', 'cell_num'), sep='\\.', remove=FALSE) %>%
-        arrange(cell_num)
-
-    if (has_stats(smat)){        
-        cells <- cells %>% left_join(smat$stats)
-    }
-
-    message('Converting smat to data frame')
-    smat_df <- smat.to_df(smat) %>% select(-id)
-
-    db <- cgdb_add_plate_from_df(db, smat_df, cells, plate_name=plate_name, overwrite=overwrite, update_cells=update_cells, verbose=verbose)
-   
-    return(db)
-}
-
 #' @export
 freemem <- function(db){
     freemem_cpp(db@.xptr)
@@ -986,13 +833,18 @@ count_pairs <- function(db, max_chunk_size=200){
         message(glue('extracting ({chunk})'))
         df <- extract_sc_data_sparse(db@.xptr, db@cpgs$id, x$cell)    
 
+        empty_cells <- x$cell[!(x$cell %in% df$cell_id)]
+        if (length(empty_cells) > 0){
+            df <- df %>% bind_rows(data.frame(cell_id = empty_cells) %>% mutate(id = db@cpgs$id[1], cov=0, meth=0))
+        }
+        
         message(glue('arranging ({chunk})'))
         smat <- list()
         smat$meth <- tidy2smat(df, 'id', 'cell_id', 'meth')
         smat$cov <- tidy2smat(df, 'id', 'cell_id', 'cov')       
         
-        colnames(smat$cov) <- x$cell
-        colnames(smat$meth) <- x$cell
+        # colnames(smat$cov) <- x$cell
+        # colnames(smat$meth) <- x$cell
 
         print(dim(smat$meth))          
 
@@ -1001,6 +853,7 @@ count_pairs <- function(db, max_chunk_size=200){
 
         message(glue('calculating pairs ({chunk})'))
         pairs_meth <- sc5mc.calc_pdiff(smat, min_cgs=0) %>% select(cell1, cell2, n00, n01, n10, n11)        
+
         rm(smat)
         gc()
         return(pairs_meth)
@@ -1010,7 +863,7 @@ count_pairs <- function(db, max_chunk_size=200){
     
     cell_pairs <- cell_pairs %>% anti_join(pairs, by=c('cell1', 'cell2')) %>% arrange(cell1, cell2)
     message(glue('remaining {nrow(cell_pairs)}'))
-    
+        
     if (nrow(cell_pairs) > 0){
         # gpatterns::gpatterns.set_parallel(getOption('gpatterns.parallel.thread_num'))
         # nbins <- getOption('gpatterns.parallel.thread_num')
