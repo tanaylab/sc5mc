@@ -23,6 +23,9 @@ or \code{ncol} > 1. Default is 4.}
 
 \item{...}{additional parameters for cowplot::save_plot}
 }
+\value{
+if \code{return_all_plots} - returns a list of all the sub-figures. otherwise returns a large plot with all the figures combined.
+}
 \description{
 Plot QC statistics of cgdb object
 }

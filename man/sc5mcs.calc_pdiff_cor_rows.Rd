@@ -10,7 +10,13 @@ sc5mcs.calc_pdiff_cor_rows(row_comp, min_intervals,
 \arguments{
 \item{row_comp}{}
 
-\item{intervals}{}
+\item{min_intervals}{min_intervals}
+
+\item{pairwise.complete.obs}{pairwise.complete.obs}
+
+\item{spearman}{spearman}
+
+\item{intervals}{intervals}
 }
 \description{
 calculate pairwise correlation of CpGs pdiff

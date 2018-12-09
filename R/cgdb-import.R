@@ -41,14 +41,13 @@ cgdb_add_cell <- function(db, df, cell, plate, overwrite=TRUE){
         dir.create(dirname, showWarnings=FALSE, recursive=TRUE)        
         df <- df %>% inner_join(db@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id)) %>% arrange(id)
 
-        df <- as.data.frame(df)
-        cov_vec <- as.integer(df$cov)
-        met_vec <- as.integer(df$meth)
+        cov_vec <- as.numeric(df$cov)
+        met_vec <- as.numeric(df$meth)
         idxs <- as.integer(df$id)
 
         writeBin(idxs, paste0(fname, '.idx.bin'), size=4)                
         writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
-        writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)
+        writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)        
         message(glue('created {cell}'))    
     }
     invisible(db)
