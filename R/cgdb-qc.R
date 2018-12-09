@@ -8,7 +8,7 @@
 #' @param ... additional parameters for cowplot::save_plot
 #' @inheritParams cowplot::save_plot
 #' 
-#' @retrun if \code{return_all_plots} - returns a list of all the sub-figures. otherwise returns a large plot with all the figures combined. 
+#' @return if \code{return_all_plots} - returns a list of all the sub-figures. otherwise returns a large plot with all the figures combined. 
 #' 
 #' 
 #' @export

@@ -243,10 +243,10 @@ sc5mc.calc_pdiff_rows <- function(smat, min_cells=5, intervs=NULL, cols=NULL){
 #' 
 #' @param row_comp
 #'
-#' @param min_intervals
-#' @param spearman
-#' @param pairwise.complete.obs
-#' @param intervals
+#' @param min_intervals min_intervals
+#' @param spearman spearman
+#' @param pairwise.complete.obs pairwise.complete.obs
+#' @param intervals intervals
 #'
 #' @export
 sc5mcs.calc_pdiff_cor_rows <- function(row_comp, min_intervals, pairwise.complete.obs=TRUE, spearman=TRUE, intervals=NULL){
