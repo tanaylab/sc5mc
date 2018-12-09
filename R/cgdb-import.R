@@ -39,10 +39,12 @@ cgdb_add_cell <- function(db, df, cell, plate, overwrite=TRUE){
 
     if (!file.exists(paste0(fname, '.idx.bin')) || overwrite){
         dir.create(dirname, showWarnings=FALSE, recursive=TRUE)        
-        df <- df %>% left_join(db@cpgs) %>% arrange(id)
-        cov_vec <- df$cov
-        met_vec <- df$meth
-        idxs <- df$id
+        df <- df %>% inner_join(db@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id)) %>% arrange(id)
+
+        df <- as.data.frame(df)
+        cov_vec <- as.integer(df$cov)
+        met_vec <- as.integer(df$meth)
+        idxs <- as.integer(df$id)
 
         writeBin(idxs, paste0(fname, '.idx.bin'), size=4)                
         writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
@@ -52,8 +54,19 @@ cgdb_add_cell <- function(db, df, cell, plate, overwrite=TRUE){
     invisible(db)
 }
 
+lock_db <- function(db){
+
+    lock <- filelock::lock(glue('{db@db_root}/.cells_lock'), timeout=Inf)
+    return(lock)
+}
+
+unlock_db <- function(lock){
+
+    filelock::unlock(lock)
+}
+
 cgdb_update_cells <- function(db, cells, append=FALSE){   
-    l <- filelock::lock(glue('{db@db_root}/.cells_lock'), timeout=Inf)
+    l <- lock_db(db)
     db@cells <- fread(glue('{db@db_root}/cells.csv')) %>% as_tibble()
 
     if (append){
@@ -67,7 +80,7 @@ cgdb_update_cells <- function(db, cells, append=FALSE){
     }
     
     fwrite(cells, glue('{db@db_root}/cells.csv'), sep=',')    
-    filelock::unlock(l)
+    unlock_db(l)
     db@cells <- cells
     invisible(db)
 }
