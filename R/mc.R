@@ -12,12 +12,16 @@
 #' @param min_tad_cov min_tad_cov 
 #' @param min_tad_cells min_tad_cells 
 #' @param min_tads min_tads
+#' @param tads_meth previously computed methylation of TADS (using get_tads_meth)
 #' 
 #' @return list with the following fields: mc_map, tads_clust, tads_meth, tads_meth_f, tads_mc  
 #' 
 #' @export
-sc5mc.generate_metacells <- function(db, tad_intervs, knn=80, k_expand=10, min_cluster_size=20, n_resamp=1000, seed=NULL,  K=50, min_mc_size=30, min_tad_cov=10, min_tad_cells=50, min_tads=1000){
-    tads_meth <- get_tads_meth(db, tad_intervs=tad_intervs)
+sc5mc.generate_metacells <- function(db, tad_intervs, knn=80, k_expand=10, min_cluster_size=20, n_resamp=1000, seed=NULL,  K=50, min_mc_size=30, min_tad_cov=10, min_tad_cells=50, min_tads=1000, tads_meth=NULL){
+    if (is.null(tads_meth)){
+        tads_meth <- get_tads_meth(db, tad_intervs=tad_intervs)    
+    }
+    
     tads_meth_f <- tads_meth %>% filter_tads(min_cov = min_tad_cov, min_cells=min_tad_cells, min_tads=min_tads)
     tads_clust <-  tads_meth_f %>% cluster_tads_knn(knn=knn, k_expand=k_expand, min_cluster_size=min_cluster_size, n_resamp=n_resamp, seed=seed, normalize=TRUE)
     tads_mc <- mc_from_coclust(tads_clust$coc, tads_clust$tads_m, K=K, min_mc_size=min_mc_size)
@@ -26,17 +30,27 @@ sc5mc.generate_metacells <- function(db, tad_intervs, knn=80, k_expand=10, min_c
     return(list(mc_map=mc_map, tads_clust=tads_clust, tads_meth=tads_meth, tads_meth_f=tads_meth_f, tads_mc=tads_mc))
 }
 
+#' @export
 get_tads_meth <- function(db, tad_intervs){
     tads_meth <- db %>% summarise_intervals(tad_intervs)
     return(tads_meth)
 }
 
+#' @export
 filter_tads <- function(tads_meth, min_cov, min_cells, min_tads=NULL){    
-    tads_meth <- tads_meth %>% group_by(chrom, start, end) %>% filter(sum(cov >= min_cov) >= min_cells) 
-    n_tads <- n_groups(tads_meth)
+    tads_meth <- tads_meth %>% 
+        group_by(chrom, start, end) %>% 
+        filter(sum(cov >= min_cov) >= min_cells) 
+
+    n_tads <- n_groups(tads_meth)    
     min_tads <- min_tads %||% (0.7 * n_tads)
     message(glue('min_tads: {min_tads}'))
-    tads_meth <- tads_meth %>% group_by(cell_id) %>% filter(sum(cov >= min_cov) >= min_tads) %>% ungroup()
+
+    tads_meth <- tads_meth %>% 
+        group_by(cell_id) %>% 
+        filter(sum(cov >= min_cov) >= min_tads) %>%
+        ungroup()
+
     return(tads_meth)
 }
 
