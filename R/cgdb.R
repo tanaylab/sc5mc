@@ -84,8 +84,8 @@ cgdb_load <- function(db_root){
     if (!file.exists(cells_file)){
         stop(glue('cells file (cells.csv) doesn\'t exist. To create a new database, please run cgdb_init("{db_root}")'))
     }
-    cpgs <- fread(cpgs_file) %>% as_tibble()
-    cells <- fread(cells_file) %>% as_tibble()
+    cpgs <- fread(cpgs_file, na.strings='') %>% as_tibble()
+    cells <- fread(cells_file, na.strings='') %>% as_tibble()
     db <- new('cgdb', db_root = db_root, cpgs = cpgs, cells=cells, CPG_NUM=max(cpgs$id))    
     
     return(db)    
@@ -121,7 +121,7 @@ cgdb_save <- function(db, path=NULL, force=FALSE){
         } 
     }
 
-    fwrite(db@cells, cells_file, sep=',')
+    fwrite(db@cells, cells_file, sep=',', na="NA")
 
     cpgs_file <- glue('{path}/cpgs.csv')
 
@@ -137,7 +137,7 @@ cgdb_save <- function(db, path=NULL, force=FALSE){
         } 
     }   
 
-    fwrite(db@cpgs, cpgs_file, sep=',')
+    fwrite(db@cpgs, cpgs_file, sep=',', na="NA")
        
     if (file.exists(file.path(path, 'data'))){
         file.remove(file.path(path, 'data'))
@@ -582,6 +582,7 @@ mutate_cells <- function(db, ...){
     return(db)
 }
 
+#' @export
 gintervals.neighbors_cpgs <- function(db, ...){
     opt <- options(gmax.data.size = 1e9)
     on.exit(options(opt))
