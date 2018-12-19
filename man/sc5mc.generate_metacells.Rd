@@ -7,7 +7,7 @@
 sc5mc.generate_metacells(db, tad_intervs, knn = 80, k_expand = 10,
   min_cluster_size = 20, n_resamp = 1000, seed = NULL, K = 50,
   min_mc_size = 30, min_tad_cov = 10, min_tad_cells = 50,
-  min_tads = 1000)
+  min_tads = 1000, tads_meth = NULL)
 }
 \arguments{
 \item{db}{cgdb object}
@@ -33,6 +33,8 @@ sc5mc.generate_metacells(db, tad_intervs, knn = 80, k_expand = 10,
 \item{min_tad_cells}{min_tad_cells}
 
 \item{min_tads}{min_tads}
+
+\item{tads_meth}{previously computed methylation of TADS (using get_tads_meth)}
 }
 \value{
 list with the following fields: mc_map, tads_clust, tads_meth, tads_meth_f, tads_mc

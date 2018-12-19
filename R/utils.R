@@ -64,10 +64,10 @@ downsample_meth <- function(df, dsn=NULL, .parallel=TRUE){
 
     df_ds <- plyr::ddply(df, plyr::.(cell_id), function(x){       
 
-        d_meth <- x %>% select(chrom, start, end, meth) %>% mutate(m = 1) %>% uncount(meth)
-        d_unmeth <- x %>% select(chrom, start, end, unmeth) %>% mutate(m = 0) %>% uncount(unmeth)
+    d_meth <- x %>% select(chrom, start, end, meth) %>% mutate(m = 1) %>% uncount(meth)
+    d_unmeth <- x %>% select(chrom, start, end, unmeth) %>% mutate(m = 0) %>% uncount(unmeth)
         
-        res <- bind_rows(d_meth, d_unmeth) %>% 
+    res <- bind_rows(d_meth, d_unmeth) %>% 
             sample_n(dsn) %>% 
             group_by(chrom, start, end) %>% 
             summarise(cov = n(), meth = sum(m)) %>% 
