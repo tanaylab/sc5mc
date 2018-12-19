@@ -3,7 +3,7 @@
 #' @param proj2d output of sc5mc.mc2d_force_knn
 #' 
 #' @export
-sc5mc.plot_proj2d <- function(proj2d, cell_annot=NULL, mc_annot=NULL, mc_color_column=NULL, color_column=NULL, plot_mc_names = TRUE, mc_text_color='black', mc_text_size=2, mc_point_color='black', mc_point_fill='white', graph_color='black', graph_width = 0.5, point_size=0.5, alpha=1, mc_alpha=1, mc_point_size=5, plot_graph=TRUE, plot_mc_points=TRUE){
+sc5mc.plot_proj2d <- function(proj2d, cell_annot=NULL, mc_annot=NULL, mc_color_column=NULL, color_column=NULL, plot_mc_names = TRUE, mc_text_color='black', mc_text_size=2, mc_point_color='black', mc_point_fill='white', graph_color='black', graph_width = 0.5, point_size=0.5, point_color='black', alpha=1, mc_alpha=1, mc_point_size=5, plot_graph=TRUE, plot_mc_points=TRUE){
     if (!is.null(cell_annot)){
         proj2d$cells <- proj2d$cells %>% left_join(cell_annot)
         if (is.null(color_column)){
@@ -14,8 +14,14 @@ sc5mc.plot_proj2d <- function(proj2d, cell_annot=NULL, mc_annot=NULL, mc_color_c
         ggp <- proj2d$cells %>% ggplot(aes(x=x, y=y))
     }    
 
-    ggp <- ggp + 
-        geom_point(size=point_size, alpha=alpha, shape=19)
+    if (is.null(color_column)){
+        ggp <- ggp + 
+            geom_point(size=point_size, alpha=alpha, color=point_color, shape=19)    
+    } else {
+        ggp <- ggp + 
+            geom_point(size=point_size, alpha=alpha, shape=19)
+    }
+    
 
     if (plot_graph){
       ggp <- ggp + geom_segment(data=proj2d$edges, aes(x=x_mc1, y=y_mc1, xend=x_mc2, yend=y_mc2), color=graph_color, size=graph_width)   
