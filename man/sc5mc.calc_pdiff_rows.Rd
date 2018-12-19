@@ -4,7 +4,8 @@
 \alias{sc5mc.calc_pdiff_rows}
 \title{calculate pairwise statistics of CpGs}
 \usage{
-sc5mc.calc_pdiff_rows(smat, min_cells = 5, intervs = NULL, cols = NULL)
+sc5mc.calc_pdiff_rows(smat, min_cells = 5, intervs = NULL,
+  cols = NULL)
 }
 \arguments{
 \item{smat}{smat object}

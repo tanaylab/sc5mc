@@ -4,7 +4,8 @@
 \alias{smat.join}
 \title{join two smat objects}
 \usage{
-smat.join(smat_r, smat_l, type = "full", prefix_l = "l_", prefix_r = "r_")
+smat.join(smat_r, smat_l, type = "full", prefix_l = "l_",
+  prefix_r = "r_")
 }
 \arguments{
 \item{smat_r}{first smat object}

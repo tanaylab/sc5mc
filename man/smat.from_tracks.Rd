@@ -4,8 +4,8 @@
 \alias{smat.from_tracks}
 \title{Create smat object from misha tracks}
 \usage{
-smat.from_tracks(tracks, libs, prefix = NULL, use_sge = TRUE, name = "",
-  description = "", ...)
+smat.from_tracks(tracks, libs, prefix = NULL, use_sge = TRUE,
+  name = "", description = "", ...)
 }
 \arguments{
 \item{tracks}{names of tracks}

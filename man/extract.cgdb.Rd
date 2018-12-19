@@ -4,7 +4,8 @@
 \alias{extract.cgdb}
 \title{Extract data from intervals and cells}
 \usage{
-\method{extract}{cgdb}(.Object, cells = NULL, cpgs = NULL, tidy = FALSE)
+\method{extract}{cgdb}(.Object, cells = NULL, cpgs = NULL,
+  tidy = FALSE)
 }
 \arguments{
 \item{cells}{cells to extract}

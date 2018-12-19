@@ -4,8 +4,8 @@
 \alias{cgdb_add_cell_from_df}
 \title{Add data from data frame to cgdb}
 \usage{
-cgdb_add_cell_from_df(df, db, cell_id, metadata = NULL, overwrite = TRUE,
-  update_cells = TRUE)
+cgdb_add_cell_from_df(df, db, cell_id, metadata = NULL,
+  overwrite = TRUE, update_cells = TRUE)
 }
 \arguments{
 \item{df}{data frame with the following fields: 

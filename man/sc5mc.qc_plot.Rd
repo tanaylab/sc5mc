@@ -7,8 +7,8 @@
 sc5mc.qc_plot(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
   max_cells = Inf, cpg_pairs_min_cells = 20, regions = NULL,
   capture_stats = FALSE, ofn = NULL, width = NULL, base_height = 9,
-  subtitle = NULL, raw_reads_dir = NULL, db = NULL, min_cgc_cov = 300,
-  ...)
+  subtitle = NULL, raw_reads_dir = NULL, db = NULL,
+  min_cgc_cov = 300, ...)
 }
 \arguments{
 \item{smat}{smat object}
