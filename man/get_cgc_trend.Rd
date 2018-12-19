@@ -4,8 +4,8 @@
 \alias{get_cgc_trend}
 \title{Calculate average methylation per cell given CpG content}
 \usage{
-get_cgc_trend(db, min_cov = 300, breaks = c(seq(0, 0.08, 0.01), 0.15, 1),
-  downsample = FALSE, downsample_n = NULL)
+get_cgc_trend(db, min_cov = 300, breaks = c(seq(0, 0.08, 0.01), 0.15,
+  1), downsample = FALSE, downsample_n = NULL)
 }
 \arguments{
 \item{db}{cgdb object}
