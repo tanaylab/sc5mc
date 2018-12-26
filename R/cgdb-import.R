@@ -38,7 +38,8 @@ cgdb_add_cell <- function(db, df, cell, plate, overwrite=TRUE){
     fname <- file.path(dirname, cell)
 
     if (!file.exists(paste0(fname, '.idx.bin')) || overwrite){
-        dir.create(dirname, showWarnings=FALSE, recursive=TRUE)        
+        dir.create(dirname, showWarnings=FALSE, recursive=TRUE)                
+        df <- df %>% select(chrom, start, end, cov, meth)
         df <- df %>% inner_join(db@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id)) %>% arrange(id)
 
         cov_vec <- as.numeric(df$cov)

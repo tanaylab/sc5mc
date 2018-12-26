@@ -55,23 +55,24 @@ downsample_cpgs <- function(tab, n=NULL){
     return(ds_tab)
 }
 
-downsample_meth <- function(df, dsn=NULL, .parallel=TRUE){
+downsample_meth <- function(df, dsn=NULL, group_vars='cell_id', .parallel=TRUE){
+    grouping <- rlang::syms(group_vars)
     if (is.null(dsn)){
-        dsn <- df %>% group_by(cell_id) %>% summarise(n = sum(cov)) %>% pull(n) %>% min()
+        dsn <- df %>% group_by(!!!grouping) %>% summarise(n = sum(cov)) %>% pull(n) %>% min()
     }
 
     df <- df %>% select(cell_id, chrom, start, end, cov, meth) %>% mutate(unmeth = cov - meth)
 
-    df_ds <- plyr::ddply(df, plyr::.(cell_id), function(x){       
+    df_ds <- plyr::ddply(df, group_vars, function(x){       
 
-    d_meth <- x %>% select(chrom, start, end, meth) %>% mutate(m = 1) %>% uncount(meth)
-    d_unmeth <- x %>% select(chrom, start, end, unmeth) %>% mutate(m = 0) %>% uncount(unmeth)
-        
-    res <- bind_rows(d_meth, d_unmeth) %>% 
-            sample_n(dsn) %>% 
-            group_by(chrom, start, end) %>% 
-            summarise(cov = n(), meth = sum(m)) %>% 
-            ungroup()
+        d_meth <- x %>% select(chrom, start, end, meth) %>% mutate(m = 1) %>% uncount(meth)
+        d_unmeth <- x %>% select(chrom, start, end, unmeth) %>% mutate(m = 0) %>% uncount(unmeth)
+            
+        res <- bind_rows(d_meth, d_unmeth) %>% 
+                sample_n(dsn) %>% 
+                group_by(chrom, start, end) %>% 
+                summarise(cov = n(), meth = sum(m)) %>% 
+                ungroup()
 
         return(as.data.frame(res))
     }, .parallel = .parallel)
