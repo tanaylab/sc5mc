@@ -109,6 +109,30 @@ plpdb_add_plate <- function(db, prefix, plate_name=NULL, overwrite=TRUE, update_
     return(db)
 }
 
+#' @export
+plpdb_add_cell_from_file <- function(file, db, cell_id, metadata=NULL, overwrite=TRUE, update_cells=TRUE){
+
+    parsed_cell_id <- parse_cell_id(cell_id)
+    plate <- parsed_cell_id$plate
+    cell_num <- parsed_cell_id$cell_num 
+
+    reads <- fread(file) %>% select(chrom, start) %>% filter(chrom %in% gintervals.all()$chrom) %>% mutate(end = start + 1) %>% gpatterns:::.gpatterns.force_chromosomes() %>% as_tibble()
+
+    pileup <- pileup_cell_reads(db, reads) %>% mutate(meth = 0)    
+    pileup <- pileup %>% mutate(cov = as.numeric(cov))
+    
+    db <- cgdb_add_cell(db, pileup, cell=cell_num, plate=plate, overwrite=overwrite)
+
+    if (update_cells){
+        metadata <- bind_cols(tibble(cell_id=cell_id, plate=plate, cell_num=cell_num), metadata)        
+        db <- cgdb_update_cells(db, metadata, append=TRUE)    
+    } else {
+        warning('cells.csv not updated')
+    }    
+
+    invisible(db)        
+}
+
 plpbdb_add_cell <- function(db, reads_dir, cell_id, cell, plate, overwrite){
     reads <- fread(glue("{reads_dir}/{cell_id}.tsv")) %>% select(chrom, start) %>% filter(chrom %in% gintervals.all()$chrom) %>% mutate(end = start + 1) %>% gpatterns:::.gpatterns.force_chromosomes() %>% as_tibble()
 
