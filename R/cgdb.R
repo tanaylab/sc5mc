@@ -85,6 +85,9 @@ cgdb_load <- function(db_root){
         stop(glue('cells file (cells.csv) doesn\'t exist. To create a new database, please run cgdb_init("{db_root}")'))
     }
     cpgs <- fread(cpgs_file, na.strings='') %>% as_tibble()
+    if (rlang::has_name(cpgs, 'cg500')){
+        cpgs$cg500 <- as.numeric(cpgs$cg500)
+    }
     cells <- fread(cells_file, na.strings='') %>% as_tibble()
     db <- new('cgdb', db_root = db_root, cpgs = cpgs, cells=cells, CPG_NUM=max(cpgs$id))    
     
