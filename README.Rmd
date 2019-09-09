@@ -2,8 +2,6 @@
 output: github_document
 ---
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 ```{r, echo = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -18,7 +16,7 @@ This package provides a set of tools for the analysis of single cell methylation
 it includes basic pipeline to import data from raw fastq, as well as functions for analysis.
 
 ### Code
-Source code can be found at: https://bitbucket.org/tanaylab/sc5mc
+Source code can be found at: https://github.com/tanaylab/sc5mc
 
 
 ## Installation
@@ -31,5 +29,5 @@ ml load mkl
 And then run:
 
 ```{r, eval=FALSE}
-install.packages('sc5mc', repos=c(getOption('repos'), 'https://tanaylab.bitbucket.io/repo'))
+install.packages('sc5mc', repos=c(getOption('repos'), 'https://tanaylab.github.io/repo'))
 ```
