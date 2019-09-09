@@ -5,8 +5,8 @@ Authors@R: c(person("Aviezer", "Lifshitz", email = "aviezer.lifshitz@weizmann.ac
     role = c("aut", "cre")),    
     person("Amos", "Tanay", role=c("aut")))
 Description: Package for analysis of single cell methylation (sc5mc).
-URL: https://bitbucket.org/tanaylab/sc5mc
-BugReports: https://bitbucket.org/tanaylab/sc5mc/issues
+URL: https://github.com/tanaylab/sc5mc
+BugReports: https://github.com/tanaylab/sc5mc/issues
 Depends:
     R (>= 3.2.2),
     misha (>= 3.5.4),
