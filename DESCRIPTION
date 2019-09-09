@@ -2,8 +2,7 @@ Package: sc5mc
 Title: Single Cell Methylation Analysis Suite
 Version: 0.1.37
 Authors@R: c(person("Aviezer", "Lifshitz", email = "aviezer.lifshitz@weizmann.ac.il",
-    role = c("aut", "cre")),    
-    person("Amos", "Tanay", role=c("aut")))
+    role = c("aut", "cre"))) 
 Description: Package for analysis of single cell methylation (sc5mc).
 URL: https://github.com/tanaylab/sc5mc
 BugReports: https://github.com/tanaylab/sc5mc/issues
