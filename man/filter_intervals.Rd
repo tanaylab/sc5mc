@@ -7,14 +7,15 @@
 filter_intervals(db, intervals, ...)
 }
 \arguments{
-\item{...}{Arguments passed on to \code{gpatterns::gintervals.filter}
-\describe{
-  \item{intervals1}{intervals set}
-  \item{intervals2}{intervals set by which to filter intervals1}
-  \item{max_distance}{maximal distance of every interval in intervals1 from intervals2 (defualt 0)}
-  \item{abs_dist}{take the absolute distance}
-  \item{bind_intervals2}{cbind add intervals2 to result}
-}}
+\item{...}{
+  Arguments passed on to \code{\link[gpatterns:gintervals.filter]{gpatterns::gintervals.filter}}
+  \describe{
+    \item{\code{intervals1}}{intervals set}
+    \item{\code{intervals2}}{intervals set by which to filter intervals1}
+    \item{\code{max_distance}}{maximal distance of every interval in intervals1 from intervals2 (defualt 0)}
+    \item{\code{abs_dist}}{take the absolute distance}
+    \item{\code{bind_intervals2}}{cbind add intervals2 to result}
+  }}
 }
 \description{
 Filter CpGs by genomic intervals

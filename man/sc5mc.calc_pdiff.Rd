@@ -4,8 +4,13 @@
 \alias{sc5mc.calc_pdiff}
 \title{calculate pairwise statistics of cells}
 \usage{
-sc5mc.calc_pdiff(smat, min_cgs = 100, intervs = NULL, cols = NULL,
-  samp_data = NULL)
+sc5mc.calc_pdiff(
+  smat,
+  min_cgs = 100,
+  intervs = NULL,
+  cols = NULL,
+  samp_data = NULL
+)
 }
 \arguments{
 \item{smat}{smat object}

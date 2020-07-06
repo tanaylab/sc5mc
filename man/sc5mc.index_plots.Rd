@@ -4,9 +4,15 @@
 \alias{sc5mc.index_plots}
 \title{plot indexes statistics}
 \usage{
-sc5mc.index_plots(smat, ofn = NULL, width = 7 * 2.5, height = 5 *
-  2.3, cells_per_umi = FALSE, return_plotlist = FALSE,
-  min_reads = 1000)
+sc5mc.index_plots(
+  smat,
+  ofn = NULL,
+  width = 7 * 2.5,
+  height = 5 * 2.3,
+  cells_per_umi = FALSE,
+  return_plotlist = FALSE,
+  min_reads = 1000
+)
 }
 \arguments{
 \item{smat}{smat object}

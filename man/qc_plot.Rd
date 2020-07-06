@@ -4,8 +4,15 @@
 \alias{qc_plot}
 \title{Plot QC statistics of cgdb object}
 \usage{
-qc_plot(db, ofn = NULL, base_height = 12, min_cgc_cov = 300,
-  return_all_figs = FALSE, downsample = TRUE, ...)
+qc_plot(
+  db,
+  ofn = NULL,
+  base_height = 12,
+  min_cgc_cov = 300,
+  return_all_figs = FALSE,
+  downsample = TRUE,
+  ...
+)
 }
 \arguments{
 \item{db}{cgdb object}
@@ -13,7 +20,7 @@ qc_plot(db, ofn = NULL, base_height = 12, min_cgc_cov = 300,
 \item{ofn}{output file}
 
 \item{base_height}{The height (in inches) of the plot or of one sub-plot if \code{nrow}
-or \code{ncol} > 1. Default is 4.}
+or \code{ncol} > 1. Default is 3.71.}
 
 \item{min_cgc_cov}{minimal coverage for average methylation per CpG content estimation}
 

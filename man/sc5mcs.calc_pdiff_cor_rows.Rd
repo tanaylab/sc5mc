@@ -4,8 +4,13 @@
 \alias{sc5mcs.calc_pdiff_cor_rows}
 \title{calculate pairwise correlation of CpGs pdiff}
 \usage{
-sc5mcs.calc_pdiff_cor_rows(row_comp, min_intervals,
-  pairwise.complete.obs = TRUE, spearman = TRUE, intervals = NULL)
+sc5mcs.calc_pdiff_cor_rows(
+  row_comp,
+  min_intervals,
+  pairwise.complete.obs = TRUE,
+  spearman = TRUE,
+  intervals = NULL
+)
 }
 \arguments{
 \item{row_comp}{}

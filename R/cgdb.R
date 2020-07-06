@@ -84,11 +84,13 @@ cgdb_load <- function(db_root){
     if (!file.exists(cells_file)){
         stop(glue('cells file (cells.csv) doesn\'t exist. To create a new database, please run cgdb_init("{db_root}")'))
     }
-    cpgs <- fread(cpgs_file, na.strings='') %>% as_tibble()
+    # cpgs <- fread(cpgs_file, na.strings='') %>% as_tibble()
+    cpgs <- vroom::vroom(cpgs_file, delim=",") %>% as_tibble()
     if (rlang::has_name(cpgs, 'cg500')){
         cpgs$cg500 <- as.numeric(cpgs$cg500)
     }
-    cells <- fread(cells_file, na.strings='') %>% as_tibble()
+    cells <- vroom::vroom(cells_file, delim=",") %>% as_tibble()
+    # cells <- fread(cells_file, na.strings='') %>% as_tibble()
     db <- new('cgdb', db_root = db_root, cpgs = cpgs, cells=cells, CPG_NUM=max(cpgs$id))    
     
     return(db)    
@@ -829,8 +831,15 @@ count_pairs <- function(db, max_chunk_size=200){
 
     cells <- tibble(cell = db@cells$cell_id, chunk = ntile(cell, round(length(cell) / max_chunk_size)))
     
-    message(glue('chunks: {length(unique(cells$chunk))}'))
+    n_chunks <- length(unique(cells$chunk))
+    message(glue('chunks: {n_chunks}'))
     doMC::registerDoMC(min(5, getOption('gpatterns.parallel.thread_num')))
+
+    if (n_chunks > 1){
+        parallel <- FALSE
+    } else {
+        parallel <- TRUE
+    }
     
     pairs <- plyr::dlply(cells, plyr::.(chunk), function(x) {    
         chunk <- x$chunk[1]        
@@ -861,7 +870,7 @@ count_pairs <- function(db, max_chunk_size=200){
         rm(smat)
         gc()
         return(pairs_meth)
-    }, .parallel = TRUE)
+    }, .parallel = parallel)
 
     pairs <- map_df(pairs, ~.x) 
     

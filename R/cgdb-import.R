@@ -65,16 +65,22 @@ unlock_db <- function(lock){
     filelock::unlock(lock)
 }
 
-cgdb_update_cells <- function(db, cells, append=FALSE){   
+cgdb_update_cells <- function(db, cells, append=FALSE){       
     l <- lock_db(db)
-    db@cells <- fread(glue('{db@db_root}/cells.csv')) %>% as_tibble()
+    db@cells <- fread(glue('{db@db_root}/cells.csv'), colClasses = c(cell_num = "character", cell_id = "character", plate = "character")) %>% as_tibble()
 
-    if (append){
+    if (append){        
         if (!is.character(db@cells$cell_num)){
             db@cells$cell_num <- as.character(db@cells$cell_num)
         }
         if (!is.character(cells$cell_num)){
             cells$cell_num <- as.character(cells$cell_num)
+        }
+        if (!is.character(db@cells$cell_id)){
+            db@cells$cell_id <- as.character(db@cells$cell_id)
+        }
+        if (!is.character(cells$cell_id)){
+            cells$cell_id <- as.character(cells$cell_id)
         }
         cells <- bind_rows(db@cells %>% filter(!(cell_id %in% cells$cell_id)), cells)
     }
@@ -87,7 +93,7 @@ cgdb_update_cells <- function(db, cells, append=FALSE){
 
 cgdb_add_plate_from_df <- function(db, df, cells, plate_name=NULL, overwrite=TRUE, update_cells=TRUE, verbose=TRUE){
     df <- df %>% inner_join(db@cpgs %>% select(chrom, start, end, id) ,by=c('chrom', 'start', 'end')) %>% filter(!is.na(id))
-
+    
     plyr::alply(cells, 1, function(x) {            
             cell <- x$cell_id
             plate <- x$plate
@@ -102,8 +108,8 @@ cgdb_add_plate_from_df <- function(db, df, cells, plate_name=NULL, overwrite=TRU
                 d <- df %>% filter(cell == x$cell_id)                
                 cov_vec <- d$cov
                 met_vec <- d$meth
-                idxs <- d$id
-
+                idxs <- as.integer(d$id)
+                
                 writeBin(idxs, paste0(fname, '.idx.bin'), size=4)
                 writeBin(met_vec, paste0(fname, '.meth.bin'), size=4)
                 writeBin(cov_vec, paste0(fname, '.cov.bin'), size=4)

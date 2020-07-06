@@ -4,8 +4,13 @@
 \alias{smat.to_marginal_track}
 \title{Create track from smat marginals}
 \usage{
-smat.to_marginal_track(smat, track, description, cols = NULL,
-  overwrite = FALSE)
+smat.to_marginal_track(
+  smat,
+  track,
+  description,
+  cols = NULL,
+  overwrite = FALSE
+)
 }
 \description{
 Create track from smat marginals

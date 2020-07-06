@@ -7,9 +7,10 @@
 fast_readMM(fn, ...)
 }
 \arguments{
-\item{...}{Arguments passed on to \code{Matrix::sparseMatrix}
-\describe{
-  \item{i}{integer vectors of the same length specifying the locations
+\item{...}{
+  Arguments passed on to \code{\link[Matrix:sparseMatrix]{Matrix::sparseMatrix}}
+  \describe{
+    \item{\code{i}}{integer vectors of the same length specifying the locations
     (row and column indices) of the non-zero (or non-\code{TRUE})
     entries of the matrix.  Note that for \emph{repeated} pairs
     \eqn{(i_k,j_k)}, when \code{x} is not missing, the corresponding
@@ -17,7 +18,7 @@ fast_readMM(fn, ...)
     the \code{"\linkS4class{TsparseMatrix}"} class, unless
     \code{use.last.ij} is true, in which case only the \emph{last} of
     the corresponding \eqn{(i_k, j_k, x_k)} triplet is used.}
-  \item{j}{integer vectors of the same length specifying the locations
+    \item{\code{j}}{integer vectors of the same length specifying the locations
     (row and column indices) of the non-zero (or non-\code{TRUE})
     entries of the matrix.  Note that for \emph{repeated} pairs
     \eqn{(i_k,j_k)}, when \code{x} is not missing, the corresponding
@@ -25,43 +26,43 @@ fast_readMM(fn, ...)
     the \code{"\linkS4class{TsparseMatrix}"} class, unless
     \code{use.last.ij} is true, in which case only the \emph{last} of
     the corresponding \eqn{(i_k, j_k, x_k)} triplet is used.}
-  \item{p}{numeric (integer valued) vector of pointers, one for each
+    \item{\code{p}}{numeric (integer valued) vector of pointers, one for each
     column (or row), to the initial (zero-based) index of elements in the
     column (or row).  Exactly one of \code{i}, \code{j} or \code{p} must
     be missing.}
-  \item{x}{
+    \item{\code{x}}{
     optional values of the matrix entries.  If specified, must be of
     the same length as \code{i} / \code{j}, or of
     length one where it will be recycled to full length.  If missing,
     the resulting matrix will be a 0/1 patter\bold{n} matrix, i.e.,
     extending class \code{\linkS4class{nsparseMatrix}}.
   }
-  \item{dims}{optional, non-negative, integer, dimensions vector of
+    \item{\code{dims}}{optional, non-negative, integer, dimensions vector of
     length 2.  Defaults to \code{c(max(i), max(j))}.}
-  \item{dimnames}{optional list of \code{\link{dimnames}}; if not
+    \item{\code{dimnames}}{optional list of \code{\link{dimnames}}; if not
     specified, none, i.e., \code{\link{NULL}} ones, are used.}
-  \item{symmetric}{logical indicating if the resulting matrix should be
+    \item{\code{symmetric}}{logical indicating if the resulting matrix should be
     symmetric.  In that case, only the lower or upper triangle needs to
     be specified via \eqn{(i/j/p)}.}
-  \item{triangular}{logical indicating if the resulting matrix should be
+    \item{\code{triangular}}{logical indicating if the resulting matrix should be
     triangular.  In that case, the lower or upper triangle needs to
     be specified via \eqn{(i/j/p)}.}
-  \item{index1}{logical scalar.  If \code{TRUE}, the default, the index
+    \item{\code{index1}}{logical scalar.  If \code{TRUE}, the default, the index
     vectors \code{i} and/or \code{j} are 1-based, as is the convention
     in \R.  That is, counting of rows and columns starts at 1.  If
     \code{FALSE} the index vectors are 0-based so counting of rows and
     columns starts at 0; this corresponds to the internal representation.}
-  \item{giveCsparse}{logical indicating if the result should be a
+    \item{\code{giveCsparse}}{logical indicating if the result should be a
     \code{\linkS4class{CsparseMatrix}} or a
     \code{\linkS4class{TsparseMatrix}}.  The default, \code{TRUE} is
     very often more efficient subsequently, but not always.}
-  \item{check}{logical indicating if a validity check is performed; do
+    \item{\code{check}}{logical indicating if a validity check is performed; do
     not set to \code{FALSE} unless you know what you're doing!}
-  \item{use.last.ij}{logical indicating if in the case of repeated,
+    \item{\code{use.last.ij}}{logical indicating if in the case of repeated,
     i.e., duplicated pairs \eqn{(i_k, j_k)} only the last one should be
     used.  The default, \code{FALSE}, corresponds to the
     \code{"\linkS4class{TsparseMatrix}"} definition.}
-}}
+  }}
 
 \item{prefix}{path prefix of the location of the smat files}
 }

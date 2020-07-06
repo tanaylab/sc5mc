@@ -4,9 +4,17 @@
 \alias{smat.plot_cor_mat}
 \title{plot cell cell correlation matrix}
 \usage{
-smat.plot_cor_mat(smat, row_ord = NULL, col_ord = NULL,
-  show_colnames = FALSE, show_rownames = FALSE, breaks = NULL,
-  color_pal = NULL, title = TRUE, ...)
+smat.plot_cor_mat(
+  smat,
+  row_ord = NULL,
+  col_ord = NULL,
+  show_colnames = FALSE,
+  show_rownames = FALSE,
+  breaks = NULL,
+  color_pal = NULL,
+  title = TRUE,
+  ...
+)
 }
 \arguments{
 \item{smat}{smat object}

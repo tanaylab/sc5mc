@@ -4,8 +4,7 @@
 \alias{cgdb_init}
 \title{Initialize cgdb database}
 \usage{
-cgdb_init(db_root, intervals = NULL, overwrite = FALSE,
-  add_cg_cont = TRUE)
+cgdb_init(db_root, intervals = NULL, overwrite = FALSE, add_cg_cont = TRUE)
 }
 \arguments{
 \item{db_root}{root directory of the cgdb database}

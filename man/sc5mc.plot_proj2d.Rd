@@ -4,13 +4,27 @@
 \alias{sc5mc.plot_proj2d}
 \title{Plot 2d projection of metacells}
 \usage{
-sc5mc.plot_proj2d(proj2d, cell_annot = NULL, mc_annot = NULL,
-  mc_color_column = NULL, color_column = NULL, plot_mc_names = TRUE,
-  mc_text_color = "black", mc_text_size = 2,
-  mc_point_color = "black", mc_point_fill = "white",
-  graph_color = "black", graph_width = 0.5, point_size = 0.5,
-  point_color = "black", alpha = 1, mc_alpha = 1,
-  mc_point_size = 5, plot_graph = TRUE, plot_mc_points = TRUE)
+sc5mc.plot_proj2d(
+  proj2d,
+  cell_annot = NULL,
+  mc_annot = NULL,
+  mc_color_column = NULL,
+  color_column = NULL,
+  plot_mc_names = TRUE,
+  mc_text_color = "black",
+  mc_text_size = 2,
+  mc_point_color = "black",
+  mc_point_fill = "white",
+  graph_color = "black",
+  graph_width = 0.5,
+  point_size = 0.5,
+  point_color = "black",
+  alpha = 1,
+  mc_alpha = 1,
+  mc_point_size = 5,
+  plot_graph = TRUE,
+  plot_mc_points = TRUE
+)
 }
 \arguments{
 \item{proj2d}{output of sc5mc.mc2d_force_knn}

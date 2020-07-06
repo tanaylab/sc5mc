@@ -1,3 +1,4 @@
+#' @export
 downsample_tab <- function(tab, n = NULL){
 
     if (!is.null(rownames(tab))){
@@ -23,6 +24,7 @@ downsample_tab <- function(tab, n = NULL){
     return(tab)
 }
 
+#' @export
 downsample_df <- function(df, columns, n=NULL){    
     tab <- df %>% select(!!! rlang::syms(columns))        
     ds_tab <- downsample_tab(t(tab), n=n)
@@ -30,6 +32,7 @@ downsample_df <- function(df, columns, n=NULL){
     return(df %>% select(-one_of(columns)) %>% bind_cols(ds_tab))
 }
 
+#' @export
 downsample_cpgs <- function(tab, n=NULL){
 	tab <- tab %>% select(cell_id, cov, meth)
 	if (is.null(n)){
@@ -55,6 +58,7 @@ downsample_cpgs <- function(tab, n=NULL){
     return(ds_tab)
 }
 
+#' @export
 downsample_meth <- function(df, dsn=NULL, group_vars='cell_id', .parallel=TRUE){
     grouping <- rlang::syms(group_vars)
     if (is.null(dsn)){
@@ -84,6 +88,6 @@ downsample_meth <- function(df, dsn=NULL, group_vars='cell_id', .parallel=TRUE){
 
 
 # debug utils
-read_cell_binary_files <- function(db, plate, cell, n=1e6){
-    tibble(id = readBin(glue('{db@db_root}/data/{plate}/{cell}.idx.bin'), what=integer(), size=4, n=n), cov = readBin(glue('{db@db_root}/data/{plate}/{cell}.cov.bin'), what=integer(), size=4, n=n), meth = readBin(glue('{db@db_root}/data/{plate}/{cell}.meth.bin'), what=integer(), size=4, n=n))
+read_cell_binary_files <- function(db, plate, cell, n=1e6){    
+    tibble(id = readBin(glue('{db@db_root}/data/{plate}/{cell}.idx.bin'), what=integer(), size=4, n=n), cov = readBin(glue('{db@db_root}/data/{plate}/{cell}.cov.bin'), what=numeric(), size=4, n=n), meth = readBin(glue('{db@db_root}/data/{plate}/{cell}.meth.bin'), what=numeric(), size=4, n=n))
 }

@@ -4,10 +4,21 @@
 \alias{sc5mc.generate_metacells}
 \title{Genarate metacells from TAD methylation}
 \usage{
-sc5mc.generate_metacells(db, tad_intervs, knn = 80, k_expand = 10,
-  min_cluster_size = 20, n_resamp = 1000, seed = NULL, K = 50,
-  min_mc_size = 30, min_tad_cov = 10, min_tad_cells = 50,
-  min_tads = 1000, tads_meth = NULL)
+sc5mc.generate_metacells(
+  db,
+  tad_intervs,
+  knn = 80,
+  k_expand = 10,
+  min_cluster_size = 20,
+  n_resamp = 1000,
+  seed = NULL,
+  K = 50,
+  min_mc_size = 30,
+  min_tad_cov = 10,
+  min_tad_cells = 50,
+  min_tads = 1000,
+  tads_meth = NULL
+)
 }
 \arguments{
 \item{db}{cgdb object}

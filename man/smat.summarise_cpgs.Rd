@@ -4,8 +4,13 @@
 \alias{smat.summarise_cpgs}
 \title{Summarises CpGs by groups pf cells}
 \usage{
-smat.summarise_cpgs(smat, groups_df = NULL, groups = NULL,
-  min_cells = 1, max_cells = Inf)
+smat.summarise_cpgs(
+  smat,
+  groups_df = NULL,
+  groups = NULL,
+  min_cells = 1,
+  max_cells = Inf
+)
 }
 \arguments{
 \item{smat}{smat object}

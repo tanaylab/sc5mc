@@ -4,11 +4,24 @@
 \alias{smat.from_bams}
 \title{Create smat object from mapped reads (bam files)}
 \usage{
-smat.from_bams(metadata, groot, prefix = NULL, workdir = tempdir(),
-  use_sge = TRUE, name = "", description = "",
-  keep_tidy_cpgs = TRUE, load_existing = FALSE, filter_dups = FALSE,
-  io_saturation = FALSE, threads = 10, cell_metadata = NULL,
-  keep_tidy_calls = TRUE, single_cell = TRUE, ...)
+smat.from_bams(
+  metadata,
+  groot,
+  prefix = NULL,
+  workdir = tempdir(),
+  use_sge = TRUE,
+  name = "",
+  description = "",
+  keep_tidy_cpgs = TRUE,
+  load_existing = FALSE,
+  filter_dups = FALSE,
+  io_saturation = FALSE,
+  threads = 10,
+  cell_metadata = NULL,
+  keep_tidy_calls = TRUE,
+  single_cell = TRUE,
+  ...
+)
 }
 \arguments{
 \item{metadata}{data frame with 'lib' column with the library name (ususally cell id)

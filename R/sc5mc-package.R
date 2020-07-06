@@ -21,7 +21,7 @@
 #' @importFrom logging loginfo
 #' @importFrom logging logwarn
 #' @importFrom logging logerror
-#' @importFrom data.table fwrite
+#' @importFrom tgutil fwrite
 #' @importClassesFrom graph graphNEL
 #' @importFrom graph plot addEdge addNode nodeRenderInfo
 #' @importFrom Rgraphviz layoutGraph

@@ -4,8 +4,14 @@
 \alias{plpdb_add_plate}
 \title{Add plate to plpdb frpm smat reads}
 \usage{
-plpdb_add_plate(db, prefix, plate_name = NULL, overwrite = TRUE,
-  update_cells = TRUE, verbose = TRUE)
+plpdb_add_plate(
+  db,
+  prefix,
+  plate_name = NULL,
+  overwrite = TRUE,
+  update_cells = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{prefix}{path prefix of the location of the smat files}

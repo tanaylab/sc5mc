@@ -4,8 +4,7 @@
 \alias{filter_by_cov}
 \title{Filter cgdb object by cpgs / cells coverage}
 \usage{
-filter_by_cov(db, min_cpgs = 0, max_cpgs = Inf, min_cells = 0,
-  max_cells = Inf)
+filter_by_cov(db, min_cpgs = 0, max_cpgs = Inf, min_cells = 0, max_cells = Inf)
 }
 \arguments{
 \item{db}{smat object}

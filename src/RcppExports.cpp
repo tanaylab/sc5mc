@@ -187,7 +187,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sc5mc_get_cell_ncpgs", (DL_FUNC) &_sc5mc_get_cell_ncpgs, 2},
     {"_sc5mc_get_cell_filename", (DL_FUNC) &_sc5mc_get_cell_filename, 2},
     {"_sc5mc_shuffle_mat_marginals", (DL_FUNC) &_sc5mc_shuffle_mat_marginals, 3},
-    {"CGDB__new",                         (DL_FUNC) &CGDB__new,                         2},
+    {"CGDB__new", (DL_FUNC) &CGDB__new, 2},
     {NULL, NULL, 0}
 };
 

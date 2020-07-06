@@ -4,8 +4,13 @@
 \alias{sc5mc.calc_pdiff_cor}
 \title{Calculate pairwise correlation of cells pdiff}
 \usage{
-sc5mc.calc_pdiff_cor(cell_comp, min_cells, pairwise.complete.obs = TRUE,
-  spearman = TRUE, cells = NULL)
+sc5mc.calc_pdiff_cor(
+  cell_comp,
+  min_cells,
+  pairwise.complete.obs = TRUE,
+  spearman = TRUE,
+  cells = NULL
+)
 }
 \arguments{
 \item{cell_comp}{Output of \code{sc5mc.calc_pdiff}: data frame with pairs of cells (cell1, cell2) and 'pdiff' column with the fraction of different CpGs.}

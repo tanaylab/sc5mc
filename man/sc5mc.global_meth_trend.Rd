@@ -4,8 +4,13 @@
 \alias{sc5mc.global_meth_trend}
 \title{Global methylation trend per cell}
 \usage{
-sc5mc.global_meth_trend(smat, breaks = seq(0, 0.3, by = 0.002),
-  include.lowest = TRUE, min_cpgs = 1, parallel = TRUE)
+sc5mc.global_meth_trend(
+  smat,
+  breaks = seq(0, 0.3, by = 0.002),
+  include.lowest = TRUE,
+  min_cpgs = 1,
+  parallel = TRUE
+)
 }
 \arguments{
 \item{smat}{smat object}

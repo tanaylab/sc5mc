@@ -4,8 +4,14 @@
 \alias{smat.summarise_by_track}
 \title{Group CpGs by a misha track, and summarise per cell}
 \usage{
-smat.summarise_by_track(smat, track, breaks, include.lowest = TRUE,
-  group_name = "group", parallel = TRUE)
+smat.summarise_by_track(
+  smat,
+  track,
+  breaks,
+  include.lowest = TRUE,
+  group_name = "group",
+  parallel = TRUE
+)
 }
 \arguments{
 \item{smat}{smat object}

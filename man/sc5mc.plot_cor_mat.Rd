@@ -4,9 +4,16 @@
 \alias{sc5mc.plot_cor_mat}
 \title{plot cell cell correlation matrix}
 \usage{
-sc5mc.plot_cor_mat(cell_cor, row_ord = NULL, col_ord = NULL,
-  show_colnames = FALSE, show_rownames = FALSE, breaks = NULL,
-  color_pal = NULL, ...)
+sc5mc.plot_cor_mat(
+  cell_cor,
+  row_ord = NULL,
+  col_ord = NULL,
+  show_colnames = FALSE,
+  show_rownames = FALSE,
+  breaks = NULL,
+  color_pal = NULL,
+  ...
+)
 }
 \arguments{
 \item{cell_cor}{cell cell correlation (output of sc5mc.calc_pdiff_cor)}

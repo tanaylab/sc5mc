@@ -4,9 +4,16 @@
 \alias{cgdb_add_cell_from_tidy_cpgs_dir}
 \title{Add data from tidy_cpgs directory to cgdb}
 \usage{
-cgdb_add_cell_from_tidy_cpgs_dir(cell_id, tidy_cpgs_dir, db,
-  tidy_cpgs_dir_non_unique = NULL, metadata = NULL,
-  single_cell = TRUE, overwrite = TRUE, update_cells = TRUE)
+cgdb_add_cell_from_tidy_cpgs_dir(
+  cell_id,
+  tidy_cpgs_dir,
+  db,
+  tidy_cpgs_dir_non_unique = NULL,
+  metadata = NULL,
+  single_cell = TRUE,
+  overwrite = TRUE,
+  update_cells = TRUE
+)
 }
 \arguments{
 \item{cell_id}{string with the cell id, needs to be of the format "{plate}.{num}", where num has to be numeric}

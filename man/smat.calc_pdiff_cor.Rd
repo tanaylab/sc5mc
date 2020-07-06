@@ -4,9 +4,16 @@
 \alias{smat.calc_pdiff_cor}
 \title{calculate pairwise correlation of cells pdiff}
 \usage{
-smat.calc_pdiff_cor(smat, min_cells = 10, min_cgs = 100,
-  pairwise.complete.obs = TRUE, spearman = TRUE, intervs = NULL,
-  cols = NULL, samp_data = NULL)
+smat.calc_pdiff_cor(
+  smat,
+  min_cells = 10,
+  min_cgs = 100,
+  pairwise.complete.obs = TRUE,
+  spearman = TRUE,
+  intervs = NULL,
+  cols = NULL,
+  samp_data = NULL
+)
 }
 \arguments{
 \item{smat}{smat object}

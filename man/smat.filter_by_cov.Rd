@@ -4,8 +4,13 @@
 \alias{smat.filter_by_cov}
 \title{Filter smat object by cpgs / cells coverage}
 \usage{
-smat.filter_by_cov(smat, min_cpgs = 1, max_cpgs = Inf, min_cells = 1,
-  max_cells = Inf)
+smat.filter_by_cov(
+  smat,
+  min_cpgs = 1,
+  max_cpgs = Inf,
+  min_cells = 1,
+  max_cells = Inf
+)
 }
 \arguments{
 \item{smat}{smat object}

@@ -4,10 +4,19 @@
 \alias{smat.cluster_cells}
 \title{Cluster cells}
 \usage{
-smat.cluster_cells(smat, min_cells = 10, min_cgs = 100,
-  pairwise.complete.obs = TRUE, spearman = TRUE,
-  clustering_method = "ward.D2", intervs = NULL, cols = NULL,
-  samp_data = NULL, plot = FALSE, ...)
+smat.cluster_cells(
+  smat,
+  min_cells = 10,
+  min_cgs = 100,
+  pairwise.complete.obs = TRUE,
+  spearman = TRUE,
+  clustering_method = "ward.D2",
+  intervs = NULL,
+  cols = NULL,
+  samp_data = NULL,
+  plot = FALSE,
+  ...
+)
 }
 \arguments{
 \item{smat}{smat object}

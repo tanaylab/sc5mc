@@ -4,10 +4,20 @@
 \alias{sc5mc.cluster_cells}
 \title{Cluster cells}
 \usage{
-sc5mc.cluster_cells(smat, min_cells = 10, min_cgs = 100,
-  pairwise.complete.obs = TRUE, spearman = TRUE,
-  clustering_distance = "euclidean", clustering_method = "ward.D2",
-  intervs = NULL, cols = NULL, samp_data = NULL, plot = FALSE, ...)
+sc5mc.cluster_cells(
+  smat,
+  min_cells = 10,
+  min_cgs = 100,
+  pairwise.complete.obs = TRUE,
+  spearman = TRUE,
+  clustering_distance = "euclidean",
+  clustering_method = "ward.D2",
+  intervs = NULL,
+  cols = NULL,
+  samp_data = NULL,
+  plot = FALSE,
+  ...
+)
 }
 \arguments{
 \item{smat}{smat object}
