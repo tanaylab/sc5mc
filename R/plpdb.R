@@ -89,7 +89,7 @@ plpdb_add_plate <- function(db, prefix, plate_name=NULL, overwrite=TRUE, update_
 
     cell_metadata_file <- paste0(prefix, '_cell_metadata.tsv')
     cell_metadata <- fread(cell_metadata_file)
-    smat_colnames <- fread( paste0(prefix, '_colnames.tsv')) %>% as.tibble() %>% pull(1)
+    smat_colnames <- fread( paste0(prefix, '_colnames.tsv')) %>% as_tibble() %>% pull(1)
 
     cells <- cell_metadata %>% 
         left_join(tibble(cell_id = smat_colnames), by = "cell_id") %>% 

@@ -126,7 +126,7 @@ cgdb_save <- function(db, path=NULL, force=FALSE){
         } 
     }
 
-    fwrite(db@cells, cells_file, sep=',', na="NA")
+    data.table::fwrite(db@cells, cells_file, sep=',', na="NA")
 
     cpgs_file <- glue('{path}/cpgs.csv')
 
@@ -142,7 +142,7 @@ cgdb_save <- function(db, path=NULL, force=FALSE){
         } 
     }   
 
-    fwrite(db@cpgs, cpgs_file, sep=',', na="NA")
+    data.table::fwrite(db@cpgs, cpgs_file, sep=',', na="NA")
        
     if (file.exists(file.path(path, 'data'))){
         file.remove(file.path(path, 'data'))

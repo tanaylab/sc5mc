@@ -180,7 +180,7 @@ sc5mc.symlink_fastq <- function(raw_fastq_dir, config_file){
 }
 
 yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/indexes/indexes.csv', package = 'sc5mc'), remove_missing=TRUE, index1_len=8, index2_len=8){
-    indexes <- fread(all_indexes_file) %>% as.tibble()
+    indexes <- fread(all_indexes_file) %>% as_tibble()
     indexes_yml <- yaml::yaml.load_file(indexes_file)
     conf_yml <- yaml::yaml.load_file(fn)
     yml <- c(conf_yml, indexes_yml)

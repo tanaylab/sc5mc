@@ -102,7 +102,7 @@ sc5mc.calc_pdiff <- function(smat, min_cgs=100, intervs=NULL, cols=NULL, samp_da
 
     cell_comp <- plyr::alply(stats_tab, 1, function(x) calc_mat_stat(smat, x$mat1, x$mat2, x$col), .parallel = TRUE)
 
-    cell_comp <- cell_comp %>%  reduce(left_join, by=c('cell1', 'cell2')) %>% tbl_df
+    cell_comp <- cell_comp %>%  reduce(left_join, by=c('cell1', 'cell2')) %>% as_tibble()
 
     cell_comp <- cell_comp %>%
         mutate(n = n11 + n00 + n10 + n01, psame = (n00 + n11) / n, pdiff=1 - psame) %>%
@@ -168,7 +168,7 @@ sc5mc.calc_pdiff_cor <- function(cell_comp, min_cells, pairwise.complete.obs=TRU
     cell_cor <- tgstat::tgs_cor(cell_comp, pairwise.complete.obs = pairwise.complete.obs, spearman = spearman) %>%
         reshape2::melt() %>%
         rename(cell1=Var1, cell2=Var2, corr=value) %>%
-        tbl_df
+        as_tibble()
     return(cell_cor)
 }
 
@@ -229,7 +229,7 @@ sc5mc.calc_pdiff_rows <- function(smat, min_cells=5, intervs=NULL, cols=NULL){
     interval_comp <- plyr::alply(stats_tab, 1, function(x) calc_mat_stat(smat, x$mat1, x$mat2, x$col), .parallel=T)
 
 
-    interval_comp <- interval_comp %>%  reduce(left_join, by=c('interval1', 'interval2')) %>% tbl_df
+    interval_comp <- interval_comp %>%  reduce(left_join, by=c('interval1', 'interval2')) %>% as_tibble()
 
     interval_comp <- interval_comp %>%
         mutate(n = n11 + n00 + n10 + n01, psame = (n00 + n11) / n, pdiff=1 - psame) %>%

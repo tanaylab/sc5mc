@@ -12,7 +12,7 @@
 #' 
 #' @export
 get_cgc_trend <- function(db, min_cov=300, breaks=c(seq(0,0.08,0.01), 0.15, 1), downsample=FALSE, downsample_n=NULL){
-    cgc <- db %>% mutate_cpgs(cg_cont = cut(cg500, breaks=breaks)) %>% group_by_cpgs(cg_cont, add=TRUE) %>% summarise() %>% filter(cov >= min_cov)
+    cgc <- db %>% mutate_cpgs(cg_cont = cut(cg500, breaks=breaks)) %>% group_by_cpgs(cg_cont, .add=TRUE) %>% summarise() %>% filter(cov >= min_cov)
 
     if (downsample){
         if (is.null(downsample_n)){

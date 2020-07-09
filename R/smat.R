@@ -9,8 +9,8 @@
 #'
 #' @export
 smat.to_df <- function(smat, coords=FALSE){    
-    tmeth <- broom::tidy(smat$meth) %>% tbl_df %>% rename(id=row, cell=column, meth=value)
-    tunmeth <- broom::tidy(smat$unmeth) %>% tbl_df %>% rename(id=row, cell=column, unmeth=value)
+    tmeth <- broom::tidy(smat$meth) %>% as_tibble() %>% rename(id=row, cell=column, meth=value)
+    tunmeth <- broom::tidy(smat$unmeth) %>% as_tibble() %>% rename(id=row, cell=column, unmeth=value)
     tidy <- tmeth %>% mutate(unmeth = tunmeth[['unmeth']], cov = meth + unmeth)
     tidy <- tidy %>% mutate(id = as.character(id)) %>% left_join(smat$intervs %>% mutate(id = as.character(id)), by='id') %>% select(chrom, start, end, id, cell, meth, unmeth, cov)
     if (coords){
@@ -269,7 +269,7 @@ fast_readMM <- function(fn, ...){
 #'
 #' @export
 smat.from_conf <- function(conf){
-    mat_colnames <- fread(conf$sparse_matrix$colnames) %>% as.tibble() %>% pull(1)
+    mat_colnames <- fread(conf$sparse_matrix$colnames) %>% as_tibble() %>% pull(1)
     
     smat <- plyr::alply(c('cov', 'meth', 'unmeth'), 1, function(x) {
         loginfo('loading %s', x)
