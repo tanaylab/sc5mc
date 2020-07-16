@@ -724,7 +724,7 @@ smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
     res <- smat$intervs %>%
         mutate(group = groups) %>%
         plyr::ddply(plyr::.(group), summarise_per_group, .parallel=parallel) %>%
-        as_tibble()) %>%
+        as_tibble() %>%
         filter(ncpgs > 0) %>%
         purrr::set_names(c(group_name, 'cell_id', 'ncpgs', 'meth', 'unmeth', 'avg'))
 
