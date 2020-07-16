@@ -243,7 +243,7 @@ yaml2indexes <- function(fn, indexes_file, all_indexes_file=system.file('config/
 sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL, log_file=NULL, raw_fastq_dir=NULL, defaults_file=sc5mc.get_defaults_file(), overwrite=FALSE, regions=NULL){
 	if (!is.null(log_file)){
 		logging::addHandler(logging::writeToFile, file=log_file)
-		logging::removeHandler('basic.stdout')
+		# logging::removeHandler('basic.stdout')
 		on.exit(logging::removeHandler('logging::writeToFile'))
 	}
 

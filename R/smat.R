@@ -288,7 +288,7 @@ smat.from_conf <- function(conf){
     smat$intervs <- as_tibble(obs_cpgs)
 
     if (has_name(conf$sparse_matrix, 'stats')){
-        smat$stats <- fread(conf$sparse_matrix$stats) %>% tbl_df()
+        smat$stats <- fread(conf$sparse_matrix$stats) %>% as_tibble()
     }
 
     if (has_name(conf$sparse_matrix, 'attributes_file')){
@@ -299,15 +299,15 @@ smat.from_conf <- function(conf){
     }
 
     if (has_name(conf$sparse_matrix, 'cell_metadata')){
-        smat$cell_metadata <- fread(conf$sparse_matrix$cell_metadata) %>% tbl_df()
+        smat$cell_metadata <- fread(conf$sparse_matrix$cell_metadata) %>% as_tibble()
     }
 
     if (has_name(conf$sparse_matrix, 'cpg_metadata')){
-        smat$cpg_metadata <- fread(conf$sparse_matrix$cpg_metadata) %>% tbl_df()
+        smat$cpg_metadata <- fread(conf$sparse_matrix$cpg_metadata) %>% as_tibble()
     }
 
     if (has_name(conf$sparse_matrix, 'hemi_meth')){
-        smat$hemi_meth <- fread(conf$sparse_matrix$hemi_meth) %>% tbl_df()
+        smat$hemi_meth <- fread(conf$sparse_matrix$hemi_meth) %>% as_tibble()
     }
 
     if (has_name(conf$sparse_matrix, 'tidy_cpgs_dir')){
@@ -446,7 +446,7 @@ smat.cell_pairs_marginals <- function(smat, cols=NULL){
 
     ntot <- crossprod(smat$cov[, ids]) %>% as.matrix() %>% reshape2::melt() %>% rename(cell1=Var1, cell2=Var2, ntot=value)
 
-    ntot <- combn(smat.colnames(smat)[ids], 2) %>% t() %>% tbl_df %>% purrr::set_names(c('cell1', 'cell2')) %>% inner_join(ntot, by=c('cell1', 'cell2'))
+    ntot <- combn(smat.colnames(smat)[ids], 2) %>% t() %>% as_tibble %>% purrr::set_names(c('cell1', 'cell2')) %>% inner_join(ntot, by=c('cell1', 'cell2'))
     
     return(ntot)
 }
@@ -474,7 +474,7 @@ smat.cpg_pairs_marginals <- function(smat, min_cells=30, cols=NULL){
     # add explicit zeroes and remove double counting
     res <-  combn(1:length(cgs), 2) %>%
         t() %>% 
-        tbl_df() %>%
+        as_tibble() %>%
         purrr::set_names(c('row', 'column')) %>% 
         left_join(ntot, by=c('row', 'column')) %>% 
         mutate(value = if_else(is.na(value), 0, value))
@@ -724,7 +724,7 @@ smat.summarise <- function(smat, groups, group_name='group', parallel=TRUE){
     res <- smat$intervs %>%
         mutate(group = groups) %>%
         plyr::ddply(plyr::.(group), summarise_per_group, .parallel=parallel) %>%
-        tbl_df %>%
+        as_tibble()) %>%
         filter(ncpgs > 0) %>%
         purrr::set_names(c(group_name, 'cell_id', 'ncpgs', 'meth', 'unmeth', 'avg'))
 
