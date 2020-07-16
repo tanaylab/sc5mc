@@ -17,7 +17,14 @@ sc5mc.generate_metacells(
   min_tad_cov = 10,
   min_tad_cells = 50,
   min_tads = 1000,
-  tads_meth = NULL
+  tads_meth = NULL,
+  rm_xy = FALSE,
+  normalize_tads = TRUE,
+  downsample = FALSE,
+  min_cov = NULL,
+  ds_quantile = 0.1,
+  norm_knn_mat = NULL,
+  norm_knn_k = 20
 )
 }
 \arguments{
@@ -46,6 +53,20 @@ sc5mc.generate_metacells(
 \item{min_tads}{min_tads}
 
 \item{tads_meth}{previously computed methylation of TADS (using get_tads_meth)}
+
+\item{rm_xy}{remove TADs from X and Y chromosome}
+
+\item{normalize_tads}{normalize TAD methylation by dividing by the sum of each row}
+
+\item{downsample}{downsample cells to have the same coverage}
+
+\item{min_cov}{minimial coverage per cell (for downsampling). If NULL the value would be determined by the coverage of the cell in \code{ds_quantile} quantile}
+
+\item{ds_quantile}{see \code{min_cov}. Quantile of the cell that determines the minimal coverage for downsampling.}
+
+\item{norm_knn_mat}{matrix to use for normalizing orthogonal effects like cell cycle. Matrix should have a row per cell and a column per variable to normalize. For example, the matrix can have one column of coverage in early/coverage in late and another column of difference in methylation in early vs late regions.}
+
+\item{norm_knn_k}{k parameter for normalization}
 }
 \value{
 list with the following fields: mc_map, tads_clust, tads_meth, tads_meth_f, tads_mc
