@@ -231,7 +231,7 @@ smat.cache_stats <- function(smat, regions=NULL, overwrite=FALSE){
 	}
 }
 
-smat.raw_reads_stats <- function(smat, raw_reads_dir){
+smat.raw_reads_stats <- function(smat, raw_reads_dir){	
 	stats <- smat$stats
 	
 	raw_fns <- map_df(unique(stats$illumina_index), ~ data.frame(illumina_index = .x) %>% mutate(fn = list(list.files(file.path(raw_reads_dir, .x, 'raw'), full.names=TRUE, pattern='R1.*\\.fastq\\.gz'))) ) %>% unnest(fn)
@@ -535,9 +535,11 @@ sc5mc.cells_per_umi <- function(smat){
 		loginfo("Getting tidy cpgs")
 		smat <- smat.get_tidy_cpgs(smat, unique=FALSE)
 	}
+	
 	loginfo("Calculating reads per UMI")
-	tcpgs <- smat$tidy_cpgs_all %>% distinct(read_id, .keep_all=TRUE) %>% select(cell_id, read_id, chrom, start, end, strand, umi1, umi2, insert_len)
-	cpu <- tcpgs %>% filter(end != '-') %>% group_by(chrom, start, end) %>% summarise(n = n(), n_cells=n_distinct(cell_id)) %>% ungroup()
+	tcpgs <- smat$tidy_cpgs_all %>% distinct(read_id, .keep_all=TRUE) %>% select(cell_id, read_id, chrom, start, end, strand, umi1, umi2, insert_len) %>% filter(end != '-')	
+	tcpgs_dt <- data.table::as.data.table(tcpgs)
+	cpu <- tcpgs_dt[ , .(n = .N, n_cells = length(unique(cell_id))), by = .(chrom, start, end)] %>% as_tibble()	
 	cpu <- cpu %>% group_by(n_cells) %>% summarise(n = n()) %>% mutate(p = n / sum(n))
 	return(cpu)	 
 }

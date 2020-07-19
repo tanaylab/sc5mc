@@ -358,7 +358,7 @@ sc5mc.clean_pipeline <- function(config_file, steps){
 }
 
 #' @export
-sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=NULL, regions=NULL){
+sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=NULL, regions=NULL, overwrite=FALSE){
 	config_file <- glue('{workdir}/config.yaml')
 	conf <- yaml::yaml.load_file(config_file)
 
@@ -373,12 +373,16 @@ sc5mc.pipeline_qc <- function(workdir, ofn = NULL, raw_fastq_dir=NULL, subtitle=
 		gsetroot(genome_conf$groot)
 		opt <- options(gmax.data.size=1e9)
 		on.exit(options(opt))
-		temp_cgdb <- glue('{workdir}/cgdb')
-		dir.create(temp_cgdb)
-		on.exit(fs::dir_delete(temp_cgdb))
-		cgdb_init(temp_cgdb, intervals=smat$intervs, overwrite = TRUE)
-		db <- cgdb_load(temp_cgdb)
-		db <- cgdb_add_plate(db, smat, plate_name=conf$plate, verbose=FALSE)
+		qc_cgdb <- glue('{workdir}/cgdb')
+		if (overwrite || !dir.exists(qc_cgdb)){
+			dir.create(qc_cgdb)			
+			cgdb_init(qc_cgdb, intervals=smat$intervs, overwrite = TRUE)
+			db <- cgdb_load(qc_cgdb)
+			db <- cgdb_add_plate(db, smat, plate_name=conf$plate, verbose=FALSE)
+		} else {
+			db <- cgdb_load(qc_cgdb)
+		}
+		
 		if (all(has_name(smat$cell_metadata, c('cell_source', 'cell_type', 'treatment')))){
 			db <- db %>% group_by_cells(cell_source, cell_type, treatment)
 		}

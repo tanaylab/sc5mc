@@ -98,7 +98,7 @@ plpdb_add_plate <- function(db, prefix, plate_name=NULL, overwrite=TRUE, update_
         arrange(cell_num) %>% 
         as_tibble()
     
-    plyr::a_ply(cells, 1, function(x) plpbdb_add_cell(db=db, reads_dir=reads_dir, cell_id = x$cell_id, cell=x$cell_num, plate=x$plate, overwrite=overwrite), .parallel = TRUE)
+    cells %>% filter(file.exists(glue("{reads_dir}/{cell_id}.tsv"))) %>% plyr::a_ply(1, function(x) plpbdb_add_cell(db=db, reads_dir=reads_dir, cell_id = x$cell_id, cell=x$cell_num, plate=x$plate, overwrite=overwrite), .parallel = TRUE)
 
     if (update_cells){
         db@cells <- fread(glue('{db@db_root}/cells.csv')) %>% as_tibble()
