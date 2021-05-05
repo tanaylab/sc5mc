@@ -275,7 +275,7 @@ sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL
 		cell_metadata <- cbind(cell_metadata, as_tibble(conf$annotations) )
 	}
 	loginfo("Writing cell metadata to %s", cell_metadata_fn)
-	readr::write_csv(cell_metadata, cell_metadata_fn)
+	tgutil::fwrite(cell_metadata, cell_metadata_fn)
 
 	raw_fastq_dir <- raw_fastq_dir %||% conf$raw_fastq_dir
 	if (!is.null(raw_fastq_dir)){
@@ -295,7 +295,7 @@ sc5mc.run_pipeline <- function(config_file=NULL, workdir=NULL, indexes_file=NULL
 	names(exp_conf) <- conf$plate_id	
 	defaults[['experiments']] <- exp_conf
 	
-	cell_metadata %>% mutate(experiment = conf$experiment, lib = cell_id) %>% readr::write_csv(gpatterns_indexes_file)
+	cell_metadata %>% mutate(experiment = conf$experiment, lib = cell_id) %>% tgutil::fwrite(gpatterns_indexes_file)
 	readr::write_lines(yaml::as.yaml(defaults), gpatterns_config_file)
 	
 	file.remove(glue('{workdir}/pipeline/finished_mapping')) # always try to map unmapped files
