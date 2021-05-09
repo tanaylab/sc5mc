@@ -330,8 +330,8 @@ sc5mc.clean_pipeline <- function(config_file, steps){
 		walk(illumina_indexes, ~ {
 			dir <- glue('{workdir}/fastq/{.x}/raw/split')
 			loginfo('removing %s', dir)
-			if (dir_exists(dir)){
-				dir_delete(dir)
+			if (fs::dir_exists(dir)){
+				fs::dir_delete(dir)
 			}			
 		})
 		file.remove(glue('{workdir}/pipeline/finished_demultiplexing'))
@@ -339,16 +339,16 @@ sc5mc.clean_pipeline <- function(config_file, steps){
 	}
 	if ('mapping' %in% steps){
 		loginfo('removing %s', glue('{workdir}/bam'))	
-		if (dir_exists(glue('{workdir}/bam'))){
-			dir_delete(glue('{workdir}/bam'))
+		if (fs::dir_exists(glue('{workdir}/bam'))){
+			fs::dir_delete(glue('{workdir}/bam'))
 		}		
 		file.remove(glue('{workdir}/pipeline/finished_mapping'))		
 		steps <- c(steps, 'bam2smat')
 	}
 	if ('bam2smat' %in% steps){
 		loginfo('removing %s', glue('{workdir}/sparse_matrices'))
-		if (dir_exists(glue('{workdir}/sparse_matrices'))){
-			dir_delete(glue('{workdir}/sparse_matrices'))
+		if (fs::dir_exists(glue('{workdir}/sparse_matrices'))){
+			fs::dir_delete(glue('{workdir}/sparse_matrices'))
 		}		
 		loginfo('removing %s', glue('{workdir}/sc_data'))
 		file.remove(glue('{workdir}/sc_data'))
