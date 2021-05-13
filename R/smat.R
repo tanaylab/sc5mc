@@ -927,8 +927,6 @@ smat.info <- function(smat){
 
 # Generics
 print.smat <- function(x) smat.info(x)
-colnames <-  function(x, ...) UseMethod("colnames")
-colnames.default <- base::colnames
 colnames.smat <- function(x) smat.colnames(x)
 select.smat <- function(x, ...) smat.select(x, ...)
 
